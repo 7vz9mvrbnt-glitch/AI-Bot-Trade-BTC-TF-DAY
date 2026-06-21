@@ -10,7 +10,7 @@
 
 const crypto = require("crypto");
 const { fetchCandles } = require("../lib/binance");
-const { analyze } = require("../lib/analyze");
+const { analyze, buildAIComment } = require("../lib/analyze");
 const { replyMessage, buildSetupFlex } = require("../lib/line");
 
 function verifySignature(body, signature, secret) {
@@ -51,6 +51,7 @@ module.exports = async function handler(req, res) {
     try {
       const candles = await fetchCandles("BTCUSDT", 50);
       const setup = analyze(candles, "BTCUSDT");
+      setup.aiComment = buildAIComment(setup);
       const flex = buildSetupFlex(setup);
       await replyMessage(event.replyToken, [flex]);
     } catch (err) {
