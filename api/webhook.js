@@ -35,6 +35,7 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  console.log("WEBHOOK SOURCE:", JSON.stringify(req.body?.events?.map(e => e.source)));
   const events = req.body?.events || [];
 
   for (const event of events) {
