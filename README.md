@@ -35,7 +35,7 @@ vercel.json    ← routes + cron schedule
 
 ### 2. ตั้ง LINE OA Webhook
 
-1. เข้า [LINE Developers Console](https://developers.line.biz/)
+1. เข้า LINE Developers Console
 2. เลือก Channel → Messaging API
 3. ตั้ง Webhook URL: `https://your-project.vercel.app/api/webhook`
 4. เปิด "Use webhook" ✓
@@ -53,8 +53,7 @@ npx vercel --prod
 
 ไปที่ Project → Settings → Environment Variables แล้วใส่ค่าทั้งหมดจาก `.env.example`
 
-**สำคัญ:** `GOOGLE_PRIVATE_KEY` ต้องมี `\n` จริง ๆ (ไม่ใช่ตัวอักษร) — copy วาง
-ตรง ๆ จาก JSON service account ได้เลย Vercel จะ parse ให้
+**สำคัญ:** `GOOGLE_PRIVATE_KEY` ต้องมี `\n` จริง ๆ — copy วางตรง ๆ จาก JSON service account ได้เลย Vercel จะ parse ให้
 
 ### 5. หา LINE Group/User ID สำหรับ Push
 
@@ -63,9 +62,7 @@ npx vercel --prod
 
 ### 6. อัปเดต DASHBOARD_URL
 
-หลังได้ domain จาก Vercel แล้ว:
-- แก้ `DASHBOARD_URL` ใน Environment Variables
-- แก้บรรทัด `const BACKEND_URL` ใน `public/dashboard.html` (หรือปล่อยให้ใช้ `window.location.origin` ก็ได้เพราะ serve จาก domain เดียวกัน)
+หลังได้ domain จาก Vercel แล้ว แก้ `DASHBOARD_URL` ใน Environment Variables
 
 ---
 
@@ -94,7 +91,7 @@ npx vercel --prod
 ## Columns Google Sheet (Daily Log) A–O
 
 | Col | ชื่อ | ตัวอย่าง |
-|-----|------|---------|
+|-----|------|--------|
 | A | Datetime | 2026-06-21T00:00:00.000Z |
 | B | Symbol | BTCUSDT |
 | C | Trend | UP |

@@ -14,7 +14,6 @@ const { appendRow } = require("../lib/sheets");
 const { pushMessage, buildSetupFlex } = require("../lib/line");
 
 module.exports = async function handler(req, res) {
-  // Vercel Cron attaches Authorization: Bearer <CRON_SECRET>
   const authHeader = req.headers["authorization"] || "";
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
@@ -22,13 +21,11 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    // 1. ดึง candles + วิเคราะห์
     const candles = await fetchCandles("BTCUSDT", 50);
     const setup = analyze(candles, "BTCUSDT");
 
     const results = {};
 
-    // 2. บันทึกลง Google Sheet
     try {
       await appendRow("Daily Log", toSheetRow(setup));
       results.sheet = "ok";
@@ -37,8 +34,6 @@ module.exports = async function handler(req, res) {
       console.error("[cron] sheet error:", e.message);
     }
 
-    // 3. Push LINE — ส่งหาทุก target ที่ตั้งค่าไว้
-    //    LINE_PUSH_TARGETS = comma-separated list ของ userId / groupId / roomId
     const targets = (process.env.LINE_PUSH_TARGETS || "").split(",").filter(Boolean);
     const flex = buildSetupFlex(setup);
     const lineResults = [];

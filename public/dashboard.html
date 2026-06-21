@@ -10,10 +10,7 @@
     h1 { font-size: 1.4rem; margin-bottom: 4px; }
     .sub { color: #8b949e; font-size: 0.85rem; margin-bottom: 24px; }
     .card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 24px; max-width: 480px; }
-    .badge {
-      display: inline-block; padding: 4px 12px; border-radius: 20px;
-      font-weight: 700; font-size: 0.9rem; margin-bottom: 16px;
-    }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 0.9rem; margin-bottom: 16px; }
     .badge.UP { background: #0d4429; color: #3fb950; }
     .badge.DOWN { background: #4d1010; color: #f85149; }
     .badge.BUY { background: #0d4429; color: #3fb950; }
@@ -25,10 +22,7 @@
     .sep { border: none; border-top: 1px solid #30363d; margin: 16px 0; }
     .note { font-size: 0.78rem; color: #8b949e; margin-top: 16px; }
     .error-msg { color: #f85149; margin-top: 16px; }
-    .refresh-btn {
-      margin-top: 20px; padding: 8px 20px; background: #238636; color: #fff;
-      border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;
-    }
+    .refresh-btn { margin-top: 20px; padding: 8px 20px; background: #238636; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
     .refresh-btn:hover { background: #2ea043; }
     .loading { color: #8b949e; font-size: 0.9rem; margin-top: 16px; }
     .price-big { font-size: 2rem; font-weight: 700; margin: 8px 0; }
@@ -62,28 +56,21 @@
         const s = data.setup;
         genAt.textContent = `อัปเดตเมื่อ: ${new Date(data.generatedAt).toLocaleString("th-TH")}`;
 
-        const trendClass = s.trend;
-        const recClass = s.recommendation;
-
         card.innerHTML = `
-          <span class="badge ${trendClass}">Trend: ${s.trend}</span>
-          <span class="badge ${recClass}" style="margin-left:8px">${s.recommendation}</span>
+          <span class="badge ${s.trend}">Trend: ${s.trend}</span>
+          <span class="badge ${s.recommendation}" style="margin-left:8px">${s.recommendation}</span>
           <div class="price-big">$${s.price.toLocaleString()}</div>
-
           <div class="grid">
             <div class="stat"><label>EMA 8</label><div class="val">$${s.ema8.toLocaleString()}</div></div>
             <div class="stat"><label>EMA 21</label><div class="val">$${s.ema21.toLocaleString()}</div></div>
           </div>
-
           <hr class="sep"/>
-
           <div class="grid">
             <div class="stat"><label>Entry Low</label><div class="val">$${s.entryLow.toLocaleString()}</div></div>
             <div class="stat"><label>Entry High</label><div class="val">$${s.entryHigh.toLocaleString()}</div></div>
             <div class="stat"><label>Stop Loss</label><div class="val">$${s.sl.toLocaleString()} <small>(${s.stopPct}%)</small></div></div>
             <div class="stat"><label>Take Profit</label><div class="val">$${s.tp.toLocaleString()} <small>(${s.tpPct}%)</small></div></div>
           </div>
-
           <p class="note">🔧 ${s.note}</p>
         `;
       } catch (err) {

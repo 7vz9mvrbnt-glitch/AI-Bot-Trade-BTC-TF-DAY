@@ -10,7 +10,6 @@ const { fetchCandles } = require("../lib/binance");
 const { analyze } = require("../lib/analyze");
 
 module.exports = async function handler(req, res) {
-  // CORS headers — ต้องใส่ทุก response รวมถึง error
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");

@@ -26,7 +26,6 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // Verify LINE signature
   const secret = process.env.LINE_CHANNEL_SECRET;
   if (secret) {
     const sig = req.headers["x-line-signature"];
@@ -55,7 +54,6 @@ module.exports = async function handler(req, res) {
       await replyMessage(event.replyToken, [flex]);
     } catch (err) {
       console.error("[webhook] error:", err.message);
-      // ถ้า error ให้ reply text เตือนแทน ไม่งั้น LINE timeout แล้ว user ไม่รู้
       try {
         await replyMessage(event.replyToken, [
           { type: "text", text: `❌ ดึงข้อมูลไม่ได้: ${err.message}` },
@@ -64,6 +62,5 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // LINE ต้องการ 200 ทันที ไม่งั้น retry
   return res.status(200).json({ ok: true });
 };
