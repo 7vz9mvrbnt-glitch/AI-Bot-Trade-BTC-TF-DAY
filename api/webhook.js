@@ -2,11 +2,15 @@
  * POST /api/webhook
  * LINE Messaging API webhook — รับ event จาก LINE OA
  * รองรับ: text message "BTC" หรือ "setup" → reply Flex setup ปัจจุบัน
+ *
+ * Required env vars:
+ *   LINE_CHANNEL_TOKEN   ← Channel access token
+ *   LINE_CHANNEL_SECRET  ← Channel secret (สำหรับ verify signature)
  */
 
 const crypto = require("crypto");
 const { fetchCandles } = require("../lib/binance");
-const { analyze } = require("../lib/analyze");
+const { analyze, buildAIComment } = require("../lib/analyze");
 const { replyMessage, buildSetupFlex } = require("../lib/line");
 
 function verifySignature(body, signature, secret) {
@@ -47,6 +51,7 @@ module.exports = async function handler(req, res) {
     try {
       const candles = await fetchCandles("BTCUSDT", 50);
       const setup = analyze(candles, "BTCUSDT");
+      setup.aiComment = buildAIComment(setup);
       const flex = buildSetupFlex(setup);
       await replyMessage(event.replyToken, [flex]);
     } catch (err) {

@@ -9,7 +9,7 @@
  */
 
 const { fetchCandles } = require("../lib/binance");
-const { analyze, toSheetRow } = require("../lib/analyze");
+const { analyze, toSheetRow, buildAIComment } = require("../lib/analyze");
 const { appendRow } = require("../lib/sheets");
 const { pushMessage, buildSetupFlex } = require("../lib/line");
 
@@ -23,6 +23,7 @@ module.exports = async function handler(req, res) {
   try {
     const candles = await fetchCandles("BTCUSDT", 50);
     const setup = analyze(candles, "BTCUSDT");
+    setup.aiComment = buildAIComment(setup);
 
     const results = {};
 
