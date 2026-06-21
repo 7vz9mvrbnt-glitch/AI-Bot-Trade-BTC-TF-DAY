@@ -2,10 +2,6 @@
  * POST /api/webhook
  * LINE Messaging API webhook — รับ event จาก LINE OA
  * รองรับ: text message "BTC" หรือ "setup" → reply Flex setup ปัจจุบัน
- *
- * Required env vars:
- *   LINE_CHANNEL_TOKEN   ← Channel access token
- *   LINE_CHANNEL_SECRET  ← Channel secret (สำหรับ verify signature)
  */
 
 const crypto = require("crypto");
@@ -35,6 +31,7 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  console.log("WEBHOOK SOURCE:", JSON.stringify(req.body?.events?.map(e => e.source)));
   const events = req.body?.events || [];
 
   for (const event of events) {
