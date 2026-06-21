@@ -1,0 +1,69 @@
+/**
+ * POST /api/webhook
+ * LINE Messaging API webhook — รับ event จาก LINE OA
+ * รองรับ: text message "BTC" หรือ "setup" → reply Flex setup ปัจจุบัน
+ *
+ * Required env vars:
+ *   LINE_CHANNEL_TOKEN   ← Channel access token
+ *   LINE_CHANNEL_SECRET  ← Channel secret (สำหรับ verify signature)
+ */
+
+const crypto = require("crypto");
+const { fetchCandles } = require("../lib/binance");
+const { analyze } = require("../lib/analyze");
+const { replyMessage, buildSetupFlex } = require("../lib/line");
+
+function verifySignature(body, signature, secret) {
+  const hash = crypto
+    .createHmac("SHA256", secret)
+    .update(body)
+    .digest("base64");
+  return hash === signature;
+}
+
+module.exports = async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  // Verify LINE signature
+  const secret = process.env.LINE_CHANNEL_SECRET;
+  if (secret) {
+    const sig = req.headers["x-line-signature"];
+    const rawBody = JSON.stringify(req.body);
+    if (!sig || !verifySignature(rawBody, sig, secret)) {
+      return res.status(401).json({ error: "Invalid signature" });
+    }
+  }
+
+  const events = req.body?.events || [];
+
+  for (const event of events) {
+    if (event.type !== "message" || event.message?.type !== "text") continue;
+
+    const text = (event.message.text || "").trim().toLowerCase();
+    const isBtcQuery = ["btc", "setup", "บีทีซี", "วิเคราะห์"].some((kw) =>
+      text.includes(kw)
+    );
+
+    if (!isBtcQuery) continue;
+
+    try {
+      const candles = await fetchCandles("BTCUSDT", 50);
+      const setup = analyze(candles, "BTCUSDT");
+      const flex = buildSetupFlex(setup);
+      await replyMessage(event.replyToken, [flex]);
+    } catch (err) {
+      console.error("[webhook] error:", err.message);
+      // ถ้า error ให้ reply text เตือนแทน ไม่งั้น LINE timeout แล้ว user ไม่รู้
+      try {
+        await replyMessage(event.replyToken, [
+          { type: "text", text: `❌ ดึงข้อมูลไม่ได้: ${err.message}` },
+        ]);
+      } catch (_) {}
+    }
+  }
+
+  // LINE ต้องการ 200 ทันที ไม่งั้น retry
+  return res.status(200).json({ ok: true });
+};

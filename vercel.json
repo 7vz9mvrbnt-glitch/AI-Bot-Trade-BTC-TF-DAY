@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "name": "ai-bot-trade-btc-tf-day",
+  "crons": [
+    {
+      "path": "/api/cron",
+      "schedule": "0 0 * * *"
+    }
+  ],
+  "routes": [
+    { "src": "/api/btc", "dest": "/api/btc.js" },
+    { "src": "/api/cron", "dest": "/api/cron.js" },
+    { "src": "/api/webhook", "dest": "/api/webhook.js" },
+    { "src": "/(.*)", "dest": "/public/$1" }
+  ]
+}

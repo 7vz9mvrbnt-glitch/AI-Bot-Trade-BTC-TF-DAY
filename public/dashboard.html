@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BTC Daily Setup Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0d1117; color: #e6edf3; min-height: 100vh; padding: 24px; }
+    h1 { font-size: 1.4rem; margin-bottom: 4px; }
+    .sub { color: #8b949e; font-size: 0.85rem; margin-bottom: 24px; }
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 24px; max-width: 480px; }
+    .badge {
+      display: inline-block; padding: 4px 12px; border-radius: 20px;
+      font-weight: 700; font-size: 0.9rem; margin-bottom: 16px;
+    }
+    .badge.UP { background: #0d4429; color: #3fb950; }
+    .badge.DOWN { background: #4d1010; color: #f85149; }
+    .badge.BUY { background: #0d4429; color: #3fb950; }
+    .badge.SHORT { background: #4d1010; color: #f85149; }
+    .badge.WAIT, .badge.WATCH_PULLBACK { background: #3d3300; color: #d29922; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+    .stat label { display: block; font-size: 0.75rem; color: #8b949e; margin-bottom: 2px; }
+    .stat .val { font-size: 1.1rem; font-weight: 600; }
+    .sep { border: none; border-top: 1px solid #30363d; margin: 16px 0; }
+    .note { font-size: 0.78rem; color: #8b949e; margin-top: 16px; }
+    .error-msg { color: #f85149; margin-top: 16px; }
+    .refresh-btn {
+      margin-top: 20px; padding: 8px 20px; background: #238636; color: #fff;
+      border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;
+    }
+    .refresh-btn:hover { background: #2ea043; }
+    .loading { color: #8b949e; font-size: 0.9rem; margin-top: 16px; }
+    .price-big { font-size: 2rem; font-weight: 700; margin: 8px 0; }
+  </style>
+</head>
+<body>
+  <h1>📊 BTC Daily Setup</h1>
+  <p class="sub" id="generatedAt">กำลังโหลด...</p>
+
+  <div class="card" id="card">
+    <p class="loading">⏳ กำลังดึงข้อมูลจาก Binance...</p>
+  </div>
+
+  <button class="refresh-btn" onclick="loadSetup()">🔄 รีเฟรช</button>
+
+  <script>
+    // ✏️ เปลี่ยน URL นี้หลัง deploy Vercel เป็น https://your-project.vercel.app
+    const BACKEND_URL = window.location.origin;
+
+    async function loadSetup() {
+      const card = document.getElementById("card");
+      const genAt = document.getElementById("generatedAt");
+      card.innerHTML = '<p class="loading">⏳ กำลังดึงข้อมูล...</p>';
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/btc?symbol=BTCUSDT`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "Unknown error");
+
+        const s = data.setup;
+        genAt.textContent = `อัปเดตเมื่อ: ${new Date(data.generatedAt).toLocaleString("th-TH")}`;
+
+        const trendClass = s.trend;
+        const recClass = s.recommendation;
+
+        card.innerHTML = `
+          <span class="badge ${trendClass}">Trend: ${s.trend}</span>
+          <span class="badge ${recClass}" style="margin-left:8px">${s.recommendation}</span>
+          <div class="price-big">$${s.price.toLocaleString()}</div>
+
+          <div class="grid">
+            <div class="stat"><label>EMA 8</label><div class="val">$${s.ema8.toLocaleString()}</div></div>
+            <div class="stat"><label>EMA 21</label><div class="val">$${s.ema21.toLocaleString()}</div></div>
+          </div>
+
+          <hr class="sep"/>
+
+          <div class="grid">
+            <div class="stat"><label>Entry Low</label><div class="val">$${s.entryLow.toLocaleString()}</div></div>
+            <div class="stat"><label>Entry High</label><div class="val">$${s.entryHigh.toLocaleString()}</div></div>
+            <div class="stat"><label>Stop Loss</label><div class="val">$${s.sl.toLocaleString()} <small>(${s.stopPct}%)</small></div></div>
+            <div class="stat"><label>Take Profit</label><div class="val">$${s.tp.toLocaleString()} <small>(${s.tpPct}%)</small></div></div>
+          </div>
+
+          <p class="note">🔧 ${s.note}</p>
+        `;
+      } catch (err) {
+        card.innerHTML = `<p class="error-msg">❌ ${err.message}</p><p class="note" style="margin-top:8px">ตรวจสอบว่า deploy Vercel แล้วและ BACKEND_URL ถูกต้อง</p>`;
+        genAt.textContent = "โหลดไม่สำเร็จ";
+      }
+    }
+
+    loadSetup();
+  </script>
+</body>
+</html>
