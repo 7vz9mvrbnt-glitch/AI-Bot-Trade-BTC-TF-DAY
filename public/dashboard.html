@@ -114,8 +114,8 @@
     function headerClass(s) {
       if (s.marketClosed) return "header-CLOSED";
       if (s.mode === "accumulate") {
-        if (s.recommendation === "ACCUMULATE") return "header-ACCUMULATE";
-        if (s.recommendation === "รอ PULLBACK") return "header-PULLBACK";
+        if (s.recommendation && s.recommendation.startsWith("สะสมที่ Fib")) return "header-ACCUMULATE";
+        if (s.recommendation === "รอ PULLBACK" || (s.recommendation && s.recommendation.includes("ยังแพง"))) return "header-PULLBACK";
         return "header-WAIT-ACC";
       }
       return s.trend === "UP" ? "header-UP" : "header-DOWN";
@@ -134,7 +134,7 @@
         </div>
         ${closed ? `<div class="market-closed-note">⏰ ตลาดเปิด: ${escHtml(s.nextOpenICT || "—")}</div>` : ""}
         ${s.mode === "accumulate"
-          ? `<span class="badge ACCUMULATE">🟡 โหมดสะสม</span><span class="badge ${s.trend === "UP" ? "UP" : "DOWN"}">Trend: ${s.trend}</span><span class="badge ${s.recommendation === "ACCUMULATE" ? "ACCUMULATE" : "ACC-WAIT"}">${escHtml(s.recommendation)}</span>`
+          ? `<span class="badge ACCUMULATE">🟡 โหมดสะสม</span><span class="badge ${s.trend === "UP" ? "UP" : "DOWN"}">Trend: ${s.trend}</span><span class="badge ${s.recommendation && s.recommendation.startsWith("สะสมที่ Fib") ? "ACCUMULATE" : "ACC-WAIT"}">${escHtml(s.recommendation)}</span>`
           : `<span class="badge ${closed ? "CLOSED" : s.trend}">Trend: ${s.trend}</span>${closed ? `<span class="badge CLOSED">คาดการณ์: ${s.recommendation}</span>` : ""}`
         }
         <div class="price-big">$${fmt(s.price)}</div>
@@ -143,12 +143,21 @@
           <div class="stat"><label>EMA 21</label><div class="val">$${fmt(s.ema21)}</div></div>
         </div>
         <hr class="sep"/>
+        ${s.mode === "accumulate" && s.fibLevels ? `
+        <div style="font-size:0.7rem;color:#d97706;font-weight:700;margin-bottom:6px">📐 โซนสะสม Fibonacci</div>
+        <div style="font-size:0.68rem;color:#8b949e;margin-bottom:8px">Swing: $${fmt(s.swingLow)} → $${fmt(s.swingHigh)}</div>
+        <div class="grid2">
+          <div class="stat"><label>Fib 50%</label><div class="val" style="${s.nearFib==='50%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f500)}</div></div>
+          <div class="stat"><label>Fib 61.8%</label><div class="val" style="${s.nearFib==='61.8%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f618)}</div></div>
+          <div class="stat"><label>Fib 65%</label><div class="val" style="${s.nearFib==='65%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f650)}</div></div>
+          <div class="stat"><label>Fib 78.6%</label><div class="val" style="${s.nearFib==='78.6%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f786)}</div></div>
+        </div>` : `
         <div class="grid2">
           <div class="stat"><label>Entry Low</label><div class="val">$${fmt(s.entryLow)}</div></div>
           <div class="stat"><label>Entry High</label><div class="val">$${fmt(s.entryHigh)}</div></div>
           <div class="stat"><label>Stop Loss</label><div class="val">$${fmt(s.sl)} <small>(${s.stopPct}%)</small></div></div>
           <div class="stat"><label>Take Profit</label><div class="val">$${fmt(s.tp)} <small>(${s.tpPct}%)</small></div></div>
-        </div>
+        </div>`}
         <p class="note" style="margin-top:10px">🔧 ${escHtml(s.note)}</p>
         ${s.aiComment ? `
         <div class="ai-comment">
