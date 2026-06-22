@@ -78,7 +78,7 @@
   <div class="board">
     <div class="card" id="card-BTCUSDT"><p class="loading">⏳ BTC...</p></div>
     <div class="card" id="card-PAXGUSDT"><p class="loading">⏳ PAXG / ทอง...</p></div>
-    <div class="card" id="card-GSPC"><p class="loading">⏳ S&amp;P 500...</p></div>
+    <div class="card" id="card-VOO"><p class="loading">⏳ VOO / S&amp;P 500...</p></div>
   </div>
 
   <hr class="divider"/>
@@ -102,8 +102,9 @@
         <option value="META">META — Meta</option>
         <option value="TSLA">TSLA — Tesla</option>
       </optgroup>
-      <optgroup label="── Index ──">
-        <option value="^NDX">NASDAQ 100</option>
+      <optgroup label="── ETF ──">
+        <option value="QQQ">QQQ — NASDAQ 100 ETF</option>
+        <option value="VOO">VOO — S&P 500 ETF</option>
       </optgroup>
     </select>
     <button class="refresh-btn" onclick="loadOther()">ดู Setup</button>
@@ -234,7 +235,7 @@
       const targets = [
         { symbol: "BTCUSDT", id: "card-BTCUSDT" },
         { symbol: "PAXGUSDT", id: "card-PAXGUSDT" },
-        { symbol: "^GSPC", id: "card-GSPC" },
+        { symbol: "VOO", id: "card-VOO" },
       ];
       document.getElementById("lastUpdate").textContent = "กำลังโหลด...";
       targets.forEach(({ id }) => {

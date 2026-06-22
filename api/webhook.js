@@ -119,9 +119,9 @@ function buildHelpMessage() {
             ["TSLA / Tesla", "Day & Swing · ผันผวนสูงมาก"],
           ]),
           { type: "separator", margin: "md" },
-          section("🌐 Index (Yahoo)", [
-            ["S&P / SP500 / VOO", "Position & Long-term"],
-            ["NASDAQ / NDX / QQQ", "Swing & Position · Tech"],
+          section("📦 ETF (Yahoo)", [
+            ["VOO / S&P / SP500", "ETF · สะสม/ถือยาว"],
+            ["QQQ / NASDAQ / NDX", "ETF · สะสม/ถือยาว · Tech"],
           ]),
           { type: "separator", margin: "md" },
           {

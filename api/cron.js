@@ -28,7 +28,7 @@ module.exports = async function handler(req, res) {
     const flexBubbles = [];
 
     // ส่ง LINE push เฉพาะ 3 สินทรัพย์หลัก (BTC, ทอง, S&P500)
-    const PUSH_SYMBOLS = ["BTCUSDT", "PAXGUSDT", "^GSPC"];
+    const PUSH_SYMBOLS = ["BTCUSDT", "PAXGUSDT", "VOO"];
     const pushTargets = SYMBOLS.filter((s) => PUSH_SYMBOLS.includes(s.symbol));
 
     // 1) ดึงข้อมูลและบันทึก Sheet ทุก symbol แต่ส่ง LINE เฉพาะ pushTargets
