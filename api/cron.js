@@ -25,10 +25,12 @@ module.exports = async function handler(req, res) {
   try {
     const targets = (process.env.LINE_PUSH_TARGETS || "").split(",").filter(Boolean);
     const allResults = [];
+    const flexBubbles = [];
 
+    // 1) ดึงข้อมูลและบันทึก Sheet ทุก symbol
     for (const entry of SYMBOLS) {
-      const { symbol, source, displayName } = entry;  // tradeNote ส่งผ่าน entry object
-      const result = { symbol, sheet: null, line: [] };
+      const { symbol, source, displayName } = entry;
+      const result = { symbol, sheet: null, line: "pending" };
       try {
         const fetcher = source === "yahoo" ? fetchYahoo : fetchCandles;
         const candles = await fetcher(symbol, 50);
@@ -45,21 +47,39 @@ module.exports = async function handler(req, res) {
           console.error(`[cron] sheet error (${symbol}):`, e.message);
         }
 
+        // เก็บ bubble ไว้รวม carousel ภายหลัง
         const flex = buildSetupFlex(setup);
-        for (const to of targets) {
-          try {
-            await pushMessage(to.trim(), [flex]);
-            result.line.push({ to: to.trim(), status: "ok" });
-          } catch (e) {
-            result.line.push({ to: to.trim(), status: `error: ${e.message}` });
-            console.error(`[cron] LINE push error (${symbol}):`, e.message);
-          }
-        }
+        flexBubbles.push(flex.contents);  // contents = bubble object
       } catch (e) {
         result.sheet = `fatal: ${e.message}`;
         console.error(`[cron] fatal (${symbol}):`, e.message);
       }
       allResults.push(result);
+    }
+
+    // 2) ส่ง LINE push ครั้งเดียวเป็น carousel (ทุก bubble รวมกัน)
+    //    LINE รองรับ carousel สูงสุด 12 bubbles ต่อ message — แบ่งเป็นชุดๆ
+    const CHUNK = 12;
+    for (const to of targets) {
+      for (let i = 0; i < flexBubbles.length; i += CHUNK) {
+        const chunk = flexBubbles.slice(i, i + CHUNK);
+        const carousel = {
+          type: "flex",
+          altText: `📊 Daily Setup Report (${chunk.length} สินทรัพย์)`,
+          contents: { type: "carousel", contents: chunk },
+        };
+        try {
+          await pushMessage(to.trim(), [carousel]);
+          allResults.forEach((r, idx) => {
+            if (idx >= i && idx < i + CHUNK) r.line = "ok";
+          });
+        } catch (e) {
+          console.error(`[cron] LINE push error chunk ${i}:`, e.message);
+          allResults.forEach((r, idx) => {
+            if (idx >= i && idx < i + CHUNK) r.line = `error: ${e.message}`;
+          });
+        }
+      }
     }
 
     return res.status(200).json({ ok: true, results: allResults });
