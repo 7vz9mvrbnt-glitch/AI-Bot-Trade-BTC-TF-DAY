@@ -62,6 +62,7 @@ module.exports = async function handler(req, res) {
       const candles = await fetcher(entry.symbol, 50);
       const setup = analyze(candles, entry.symbol);
       setup.displayName = entry.displayName;
+      setup.tradeNote = entry.tradeNote;
       setup.aiComment = buildAIComment(setup);
       const flex = buildSetupFlex(setup);
       await replyMessage(event.replyToken, [flex]);
@@ -99,27 +100,27 @@ function buildHelpMessage() {
         spacing: "sm",
         contents: [
           section("🪙 Crypto (Binance)", [
-            ["BTC / บีทีซี", "Bitcoin"],
-            ["ETH / อีเธอร์", "Ethereum"],
-            ["BNB / บีเอ็นบี", "BNB"],
-            ["XRP / ริปเปิล", "Ripple"],
-            ["SOL / โซลานา", "Solana"],
-            ["PAXG / ทอง / Gold", "PAX Gold"],
+            ["BTC / บีทีซี", "Swing & Day Trade"],
+            ["ETH / อีเธอร์", "Swing Trade"],
+            ["BNB / บีเอ็นบี", "Swing Trade"],
+            ["XRP / ริปเปิล", "Day & Swing Trade"],
+            ["SOL / โซลานา", "Day Trade · ผันผวนสูงมาก"],
+            ["PAXG / ทอง / Gold", "Position · ป้องกันความเสี่ยง"],
           ]),
           { type: "separator", margin: "md" },
           section("📈 Magnificent 7 (Yahoo)", [
-            ["AAPL / Apple / แอปเปิล", "Apple Inc."],
-            ["MSFT / Microsoft", "Microsoft"],
-            ["NVDA / Nvidia", "Nvidia"],
-            ["GOOGL / Google / กูเกิล", "Alphabet"],
-            ["AMZN / Amazon / อเมซอน", "Amazon"],
-            ["META / Facebook", "Meta"],
-            ["TSLA / Tesla / เทสลา", "Tesla"],
+            ["AAPL / Apple", "Swing & Position"],
+            ["MSFT / Microsoft", "Swing & Position"],
+            ["NVDA / Nvidia", "Swing · AI/Chip theme"],
+            ["GOOGL / Google", "Swing & Position"],
+            ["AMZN / Amazon", "Swing & Position"],
+            ["META / Facebook", "Swing · ข่าวแรง"],
+            ["TSLA / Tesla", "Day & Swing · ผันผวนสูงมาก"],
           ]),
           { type: "separator", margin: "md" },
           section("🌐 Index (Yahoo)", [
-            ["S&P / SP500 / VOO / เอสแอนด์พี", "S&P 500"],
-            ["NASDAQ / NDX / QQQ / แนสแด็ก", "NASDAQ 100"],
+            ["S&P / SP500 / VOO", "Position & Long-term"],
+            ["NASDAQ / NDX / QQQ", "Swing & Position · Tech"],
           ]),
           { type: "separator", margin: "md" },
           {

@@ -31,6 +31,7 @@ module.exports = async function handler(req, res) {
     const candles = await fetcher(symbol, 50);
     const setup = analyze(candles, symbol);
     setup.displayName = entry?.displayName || symbol;
+    setup.tradeNote = entry?.tradeNote || "";
     return res.status(200).json({ ok: true, setup, generatedAt: new Date().toISOString() });
   } catch (err) {
     console.error("[btc.js]", err.message);

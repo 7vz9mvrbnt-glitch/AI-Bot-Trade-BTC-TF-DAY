@@ -27,13 +27,14 @@ module.exports = async function handler(req, res) {
     const allResults = [];
 
     for (const entry of SYMBOLS) {
-      const { symbol, source, displayName } = entry;
+      const { symbol, source, displayName } = entry;  // tradeNote ส่งผ่าน entry object
       const result = { symbol, sheet: null, line: [] };
       try {
         const fetcher = source === "yahoo" ? fetchYahoo : fetchCandles;
         const candles = await fetcher(symbol, 50);
         const setup = analyze(candles, symbol);
         setup.displayName = displayName;
+        setup.tradeNote = entry.tradeNote;
         setup.aiComment = buildAIComment(setup);
 
         try {
