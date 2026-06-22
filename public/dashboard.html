@@ -3,48 +3,88 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Crypto Daily Setup Dashboard</title>
+  <title>Daily Setup Dashboard</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Segoe UI', sans-serif; background: #0d1117; color: #e6edf3; min-height: 100vh; padding: 24px; }
     h1 { font-size: 1.4rem; margin-bottom: 4px; }
-    .sub { color: #8b949e; font-size: 0.85rem; margin-bottom: 16px; }
-    .controls { display: flex; gap: 10px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
-    select { background: #161b22; color: #e6edf3; border: 1px solid #30363d; border-radius: 6px; padding: 8px 12px; font-size: 0.9rem; cursor: pointer; }
-    .card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 24px; max-width: 480px; }
-    .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 0.9rem; margin-bottom: 16px; }
-    .badge.UP { background: #0d4429; color: #3fb950; }
-    .badge.DOWN { background: #4d1010; color: #f85149; }
-    .badge.BUY { background: #0d4429; color: #3fb950; }
-    .badge.SHORT { background: #4d1010; color: #f85149; }
-    .badge.WAIT, .badge.WATCH_PULLBACK { background: #3d3300; color: #d29922; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
-    .stat label { display: block; font-size: 0.75rem; color: #8b949e; margin-bottom: 2px; }
-    .stat .val { font-size: 1.1rem; font-weight: 600; }
-    .sep { border: none; border-top: 1px solid #30363d; margin: 16px 0; }
-    .note { font-size: 0.78rem; color: #8b949e; margin-top: 16px; }
-    .ai-comment { background: #0d1f0d; border: 1px solid #1f4a1f; border-radius: 8px; padding: 12px; margin-top: 16px; font-size: 0.8rem; color: #9ecfa4; line-height: 1.6; white-space: pre-line; }
-    .ai-comment-title { font-size: 0.75rem; color: #3fb950; font-weight: 700; margin-bottom: 6px; }
-    .error-msg { color: #f85149; margin-top: 16px; }
+    .sub { color: #8b949e; font-size: 0.85rem; margin-bottom: 20px; }
+    .controls { display: flex; gap: 10px; align-items: center; margin-bottom: 24px; flex-wrap: wrap; }
     .refresh-btn { padding: 8px 20px; background: #238636; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
     .refresh-btn:hover { background: #2ea043; }
-    .loading { color: #8b949e; font-size: 0.9rem; margin-top: 16px; }
-    .price-big { font-size: 2rem; font-weight: 700; margin: 8px 0; }
+
+    /* Grid — 3 คอลัมน์บน desktop, stack บน mobile */
+    .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    @media (max-width: 900px) { .board { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 560px) { .board { grid-template-columns: 1fr; } }
+
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 0; }
+    .card-header { border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; }
+    .card-header .name { font-size: 0.8rem; color: rgba(255,255,255,0.8); margin-bottom: 2px; }
+    .card-header .trade-note { font-size: 0.68rem; color: #d1fae5; margin-bottom: 6px; }
+    .card-header .rec { font-size: 1.4rem; font-weight: 700; color: #fff; }
+    .header-UP          { background: #0a6628; }
+    .header-DOWN        { background: #7f1d1d; }
+    .header-CLOSED      { background: #374151; }
+    .header-ACCUMULATE  { background: #92400e; }
+    .header-PULLBACK    { background: #78350f; }
+    .header-WAIT-ACC    { background: #374151; }
+
+    .price-big { font-size: 1.6rem; font-weight: 700; margin-bottom: 12px; }
+
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-weight: 700; font-size: 0.78rem; margin-right: 6px; margin-bottom: 12px; }
+    .badge.UP, .badge.BUY { background: #0d4429; color: #3fb950; }
+    .badge.DOWN, .badge.SHORT { background: #4d1010; color: #f85149; }
+    .badge.WAIT, .badge.WATCH_PULLBACK { background: #3d3300; color: #d29922; }
+    .badge.CLOSED { background: #374151; color: #d1d5db; }
+    .badge.ACCUMULATE { background: #451a03; color: #fbbf24; }
+    .badge.ACC-WAIT { background: #1c1917; color: #a8a29e; }
+    .market-closed-note { font-size: 0.72rem; color: #9ca3af; background: #1f2937; border-radius: 6px; padding: 6px 10px; margin-bottom: 10px; }
+
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 4px; }
+    .stat label { display: block; font-size: 0.7rem; color: #8b949e; margin-bottom: 2px; }
+    .stat .val { font-size: 0.95rem; font-weight: 600; }
+    .sep { border: none; border-top: 1px solid #30363d; margin: 12px 0; }
+    .note { font-size: 0.72rem; color: #8b949e; }
+    .ai-comment { background: #0d1f0d; border: 1px solid #1f4a1f; border-radius: 8px; padding: 10px; margin-top: 12px; font-size: 0.75rem; color: #9ecfa4; line-height: 1.6; white-space: pre-line; }
+    .ai-comment-title { font-size: 0.72rem; color: #3fb950; font-weight: 700; margin-bottom: 4px; }
+    .loading { color: #8b949e; font-size: 0.9rem; }
+    .error-msg { color: #f85149; font-size: 0.85rem; }
+
+    /* สำหรับดู symbol อื่นๆ */
+    .divider { border: none; border-top: 1px solid #21262d; margin: 32px 0; }
+    .section-title { font-size: 0.85rem; color: #8b949e; margin-bottom: 16px; }
+    .mini-controls { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+    select { background: #161b22; color: #e6edf3; border: 1px solid #30363d; border-radius: 6px; padding: 6px 10px; font-size: 0.85rem; cursor: pointer; }
+    .mini-card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; max-width: 420px; }
   </style>
 </head>
 <body>
-  <h1>📊 Crypto &amp; Stock Daily Setup</h1>
-  <p class="sub" id="generatedAt">กำลังโหลด...</p>
+  <h1>📊 Daily Setup — BTC · ทอง · S&P500</h1>
+  <p class="sub" id="lastUpdate">กำลังโหลด...</p>
 
   <div class="controls">
-    <select id="symbolSelect" onchange="loadSetup()">
+    <button class="refresh-btn" onclick="loadAll()">🔄 รีเฟรช</button>
+  </div>
+
+  <!-- บอร์ดหลัก 3 การ์ด -->
+  <div class="board">
+    <div class="card" id="card-BTCUSDT"><p class="loading">⏳ BTC...</p></div>
+    <div class="card" id="card-PAXGUSDT"><p class="loading">⏳ PAXG / ทอง...</p></div>
+    <div class="card" id="card-GSPC"><p class="loading">⏳ S&amp;P 500...</p></div>
+  </div>
+
+  <hr class="divider"/>
+
+  <!-- ส่วนค้นหาสินทรัพย์อื่น -->
+  <p class="section-title">🔍 ดู Setup สินทรัพย์อื่น</p>
+  <div class="mini-controls">
+    <select id="symbolSelect">
       <optgroup label="── Crypto ──">
-        <option value="BTCUSDT">BTC — Bitcoin</option>
         <option value="ETHUSDT">ETH — Ethereum</option>
         <option value="BNBUSDT">BNB — BNB</option>
         <option value="XRPUSDT">XRP — Ripple</option>
         <option value="SOLUSDT">SOL — Solana</option>
-        <option value="PAXGUSDT">PAXG — PAX Gold</option>
       </optgroup>
       <optgroup label="── Magnificent 7 ──">
         <option value="AAPL">AAPL — Apple</option>
@@ -56,70 +96,120 @@
         <option value="TSLA">TSLA — Tesla</option>
       </optgroup>
       <optgroup label="── Index ──">
-        <option value="^GSPC">S&amp;P 500</option>
         <option value="^NDX">NASDAQ 100</option>
       </optgroup>
     </select>
-    <button class="refresh-btn" onclick="loadSetup()">🔄 รีเฟรช</button>
+    <button class="refresh-btn" onclick="loadOther()">ดู Setup</button>
   </div>
-
-  <div class="card" id="card">
-    <p class="loading">⏳ กำลังดึงข้อมูล...</p>
-  </div>
+  <div class="mini-card" id="other-card" style="display:none"></div>
 
   <script>
     const BACKEND_URL = window.location.origin;
-
-    async function loadSetup() {
-      const symbol = document.getElementById("symbolSelect").value;
-      const card = document.getElementById("card");
-      const genAt = document.getElementById("generatedAt");
-      card.innerHTML = '<p class="loading">⏳ กำลังดึงข้อมูล...</p>';
-
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/btc?symbol=${encodeURIComponent(symbol)}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (!data.ok) throw new Error(data.error || "Unknown error");
-
-        const s = data.setup;
-        genAt.textContent = `${s.displayName || s.symbol} — อัปเดตเมื่อ: ${new Date(data.generatedAt).toLocaleString("th-TH")}`;
-
-        const fmt = (n) => Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-        card.innerHTML = `
-          <span class="badge ${s.trend}">Trend: ${s.trend}</span>
-          <span class="badge ${s.recommendation}" style="margin-left:8px">${s.recommendation}</span>
-          <div class="price-big">$${fmt(s.price)}</div>
-          <div class="grid">
-            <div class="stat"><label>EMA 8</label><div class="val">$${fmt(s.ema8)}</div></div>
-            <div class="stat"><label>EMA 21</label><div class="val">$${fmt(s.ema21)}</div></div>
-          </div>
-          <hr class="sep"/>
-          <div class="grid">
-            <div class="stat"><label>Entry Low</label><div class="val">$${fmt(s.entryLow)}</div></div>
-            <div class="stat"><label>Entry High</label><div class="val">$${fmt(s.entryHigh)}</div></div>
-            <div class="stat"><label>Stop Loss</label><div class="val">$${fmt(s.sl)} <small>(${s.stopPct}%)</small></div></div>
-            <div class="stat"><label>Take Profit</label><div class="val">$${fmt(s.tp)} <small>(${s.tpPct}%)</small></div></div>
-          </div>
-          <p class="note">🔧 ${s.note}</p>
-          ${s.aiComment ? `
-          <div class="ai-comment">
-            <div class="ai-comment-title">💬 คำแนะนำ AI</div>
-            ${escHtml(s.aiComment)}
-          </div>` : ''}
-        `;
-      } catch (err) {
-        card.innerHTML = `<p class="error-msg">❌ ${err.message}</p>`;
-        genAt.textContent = "โหลดไม่สำเร็จ";
-      }
-    }
+    const fmt = (n) => Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     function escHtml(str) {
       return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
     }
 
-    loadSetup();
+    function headerClass(s) {
+      if (s.marketClosed) return "header-CLOSED";
+      if (s.mode === "accumulate") {
+        if (s.recommendation === "ACCUMULATE") return "header-ACCUMULATE";
+        if (s.recommendation === "รอ PULLBACK") return "header-PULLBACK";
+        return "header-WAIT-ACC";
+      }
+      return s.trend === "UP" ? "header-UP" : "header-DOWN";
+    }
+
+    function renderCard(s) {
+      const closed = s.marketClosed;
+      const headerCls = headerClass(s);
+      const recLabel  = closed ? "🔒 ตลาดปิด" : s.recommendation;
+      return `
+        <div class="card-header ${headerCls}">
+          <div class="name">${escHtml(s.displayName || s.symbol)} · Daily</div>
+          ${s.tradeNote ? `<div class="trade-note">${escHtml(s.tradeNote)}</div>` : ""}
+          <div class="rec">${recLabel}</div>
+          ${closed && s.lastTradeDate ? `<div style="font-size:0.68rem;color:#e5e7eb;margin-top:4px">ข้อมูล ณ ${escHtml(s.lastTradeDate)}</div>` : ""}
+        </div>
+        ${closed ? `<div class="market-closed-note">⏰ ตลาดเปิด: ${escHtml(s.nextOpenICT || "—")}</div>` : ""}
+        ${s.mode === "accumulate"
+          ? `<span class="badge ACCUMULATE">🟡 โหมดสะสม</span><span class="badge ${s.trend === "UP" ? "UP" : "DOWN"}">Trend: ${s.trend}</span><span class="badge ${s.recommendation === "ACCUMULATE" ? "ACCUMULATE" : "ACC-WAIT"}">${escHtml(s.recommendation)}</span>`
+          : `<span class="badge ${closed ? "CLOSED" : s.trend}">Trend: ${s.trend}</span>${closed ? `<span class="badge CLOSED">คาดการณ์: ${s.recommendation}</span>` : ""}`
+        }
+        <div class="price-big">$${fmt(s.price)}</div>
+        <div class="grid2">
+          <div class="stat"><label>EMA 8</label><div class="val">$${fmt(s.ema8)}</div></div>
+          <div class="stat"><label>EMA 21</label><div class="val">$${fmt(s.ema21)}</div></div>
+        </div>
+        <hr class="sep"/>
+        <div class="grid2">
+          <div class="stat"><label>Entry Low</label><div class="val">$${fmt(s.entryLow)}</div></div>
+          <div class="stat"><label>Entry High</label><div class="val">$${fmt(s.entryHigh)}</div></div>
+          <div class="stat"><label>Stop Loss</label><div class="val">$${fmt(s.sl)} <small>(${s.stopPct}%)</small></div></div>
+          <div class="stat"><label>Take Profit</label><div class="val">$${fmt(s.tp)} <small>(${s.tpPct}%)</small></div></div>
+        </div>
+        <p class="note" style="margin-top:10px">🔧 ${escHtml(s.note)}</p>
+        ${s.aiComment ? `
+        <div class="ai-comment">
+          <div class="ai-comment-title">💬 คำแนะนำ AI</div>
+          ${escHtml(s.aiComment)}
+        </div>` : ""}
+      `;
+    }
+
+    async function fetchSetup(symbol) {
+      const res = await fetch(`${BACKEND_URL}/api/btc?symbol=${encodeURIComponent(symbol)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Unknown error");
+      return data;
+    }
+
+    async function loadAll() {
+      const targets = [
+        { symbol: "BTCUSDT", id: "card-BTCUSDT" },
+        { symbol: "PAXGUSDT", id: "card-PAXGUSDT" },
+        { symbol: "^GSPC", id: "card-GSPC" },
+      ];
+      document.getElementById("lastUpdate").textContent = "กำลังโหลด...";
+      targets.forEach(({ id }) => {
+        document.getElementById(id).innerHTML = '<p class="loading">⏳ กำลังดึงข้อมูล...</p>';
+      });
+
+      const results = await Promise.allSettled(targets.map(({ symbol }) => fetchSetup(symbol)));
+
+      let latestTime = null;
+      results.forEach((result, i) => {
+        const el = document.getElementById(targets[i].id);
+        if (result.status === "fulfilled") {
+          const { setup, generatedAt } = result.value;
+          el.innerHTML = renderCard(setup);
+          if (!latestTime) latestTime = generatedAt;
+        } else {
+          el.innerHTML = `<p class="error-msg">❌ ${result.reason.message}</p>`;
+        }
+      });
+
+      document.getElementById("lastUpdate").textContent = latestTime
+        ? `อัปเดตเมื่อ: ${new Date(latestTime).toLocaleString("th-TH")}`
+        : "โหลดบางรายการไม่สำเร็จ";
+    }
+
+    async function loadOther() {
+      const symbol = document.getElementById("symbolSelect").value;
+      const el = document.getElementById("other-card");
+      el.style.display = "block";
+      el.innerHTML = '<p class="loading">⏳ กำลังดึงข้อมูล...</p>';
+      try {
+        const { setup } = await fetchSetup(symbol);
+        el.innerHTML = renderCard(setup);
+      } catch (err) {
+        el.innerHTML = `<p class="error-msg">❌ ${err.message}</p>`;
+      }
+    }
+
+    loadAll();
   </script>
 </body>
 </html>
