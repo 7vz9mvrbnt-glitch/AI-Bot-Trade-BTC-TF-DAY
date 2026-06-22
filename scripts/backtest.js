@@ -175,7 +175,7 @@ function generateSignal(candles, filterMode) {
     tp2   = entry - risk * 2;                 // 2R
   }
 
-  return { direction, entry, sl, tp1, tp2, atr, ema21: ema21v, patternLabel };
+  return { direction, entry, sl, tp1, tp2, atr, ema21: ema21v, patternLabel, candleIdx: candles.length - 1 };
 }
 
 // ─────────────────────────────────────────────
@@ -297,12 +297,83 @@ function simulatePartial(signal, candles, fromIdx) {
   return null;
 }
 
+/**
+ * Trailing EMA8 exit:
+ *   Phase 1 (before 1R): SL = candle tip  → ถ้า hit = -1R
+ *   Phase 2 (after 1R):  50% ออกที่ 1R, SL ย้ายตาม EMA8 ทุกวัน
+ *                        ถ้า EMA8 cross ทาง EMA21 = ออก 50% ที่เหลือ
+ *   MAX_HOLD ยังคงไว้เป็น safety net
+ */
+function simulateTrailEMA8(signal, candles, fromIdx) {
+  const { direction, entry, sl, tp1 } = signal;
+  const risk = direction === "BUY" ? entry - sl : sl - entry;
+  if (risk <= 0) return null;
+
+  let phase = 1;
+  let slCurrent = sl;
+  let partialPnl = 0;
+
+  for (let d = 1; d <= MAX_HOLD; d++) {
+    const c = candles[fromIdx + d];
+    if (!c) break;
+
+    // คำนวณ EMA8 ณ วันนี้ เพื่อใช้เป็น trailing stop ใน phase 2
+    const windowCloses = candles.slice(0, fromIdx + d + 1).map(x => x.close);
+    const ema8Now = ema(windowCloses, 8);
+
+    if (phase === 1) {
+      if (direction === "BUY") {
+        if (c.low  <= slCurrent) return { result: "LOSS", pnlR: -1,  days: d, exit: "SL" };
+        if (c.high >= tp1) { partialPnl = 0.5; slCurrent = ema8Now; phase = 2; }
+      } else {
+        if (c.high >= slCurrent) return { result: "LOSS", pnlR: -1,  days: d, exit: "SL" };
+        if (c.low  <= tp1) { partialPnl = 0.5; slCurrent = ema8Now; phase = 2; }
+      }
+    }
+
+    if (phase === 2) {
+      // ย้าย trailing SL ตาม EMA8 (เฉพาะทิศที่ดีขึ้น)
+      if (direction === "BUY")   slCurrent = Math.max(slCurrent, ema8Now);
+      else                       slCurrent = Math.min(slCurrent, ema8Now);
+
+      const pnlAtClose = direction === "BUY"
+        ? (c.close - entry) / risk
+        : (entry  - c.close) / risk;
+
+      if (direction === "BUY") {
+        if (c.low <= slCurrent) {
+          const exitR = (slCurrent - entry) / risk;
+          const total = parseFloat((partialPnl + 0.5 * exitR).toFixed(2));
+          return { result: total > 0 ? "WIN" : "LOSS", pnlR: total, days: d, exit: "TRAIL" };
+        }
+      } else {
+        if (c.high >= slCurrent) {
+          const exitR = (entry - slCurrent) / risk;
+          const total = parseFloat((partialPnl + 0.5 * exitR).toFixed(2));
+          return { result: total > 0 ? "WIN" : "LOSS", pnlR: total, days: d, exit: "TRAIL" };
+        }
+      }
+
+      if (d === MAX_HOLD) {
+        const total = parseFloat((partialPnl + 0.5 * Math.max(pnlAtClose, 0)).toFixed(2));
+        return { result: total > 0 ? "WIN" : "LOSS", pnlR: total, days: d, exit: "TIMEOUT" };
+      }
+    } else if (d === MAX_HOLD) {
+      const pnl = direction === "BUY"
+        ? (c.close - entry) / risk
+        : (entry - c.close) / risk;
+      return { result: pnl >= 0 ? "WIN" : "LOSS", pnlR: parseFloat(pnl.toFixed(2)), days: d, exit: "TIMEOUT" };
+    }
+  }
+  return null;
+}
+
 // ─────────────────────────────────────────────
 // BACKTEST RUNNER
 // ─────────────────────────────────────────────
 
 /**
- * exitMode: "FULL" | "PARTIAL"
+ * exitMode: "FULL" | "PARTIAL" | "TRAIL_EMA8"
  * patternMode: "PINBAR" | "OB"
  */
 function runBacktest(candles, patternMode, exitMode) {
@@ -312,7 +383,9 @@ function runBacktest(candles, patternMode, exitMode) {
   const sig = { BUY: 0, SHORT: 0 };
   let skipUntil = 0;
 
-  const simulate = exitMode === "PARTIAL" ? simulatePartial : simulateFull;
+  const simulate = exitMode === "PARTIAL" ? simulatePartial
+    : exitMode === "TRAIL_EMA8" ? simulateTrailEMA8
+    : simulateFull;
 
   for (let i = WARMUP; i < candles.length - MAX_HOLD - 1; i++) {
     if (i < skipUntil) continue;
@@ -407,7 +480,10 @@ function printCompareTable(assetLabel, results) {
 }
 
 function printDetailedReport(r, assetLabel) {
-  const modeLabel = `${r.patternMode} + ${r.exitMode === "PARTIAL" ? "Partial Exit (50%@1R → BE → 50%@2R)" : "Full Exit (2R)"}`;
+  const exitLabel = r.exitMode === "PARTIAL" ? "Partial Exit (50%@1R → BE → 50%@2R)"
+    : r.exitMode === "TRAIL_EMA8" ? "Trail EMA8 (50%@1R → trail SL ตาม EMA8)"
+    : "Full Exit (2R)";
+  const modeLabel = `${r.patternMode} + ${exitLabel}`;
   console.log(`\n${SEP}`);
   console.log(`📊  ${assetLabel}  —  ${modeLabel}`);
   console.log(SEP);
@@ -428,7 +504,7 @@ function printDetailedReport(r, assetLabel) {
   console.log(`  Avg Hold        : ${f2(r.avgHold)} วัน`);
 
   // exit type breakdown
-  if (r.exitMode === "PARTIAL" && Object.keys(r.exitCounts).length) {
+  if ((r.exitMode === "PARTIAL" || r.exitMode === "TRAIL_EMA8") && Object.keys(r.exitCounts).length) {
     console.log(`\n  Exit Breakdown:`);
     const sorted = Object.entries(r.exitCounts).sort((a,b)=>b[1]-a[1]);
     for (const [k, v] of sorted) {
@@ -436,14 +512,23 @@ function printDetailedReport(r, assetLabel) {
       const bar = "█".repeat(Math.min(Math.round(v / r.total * 20), 20));
       console.log(`    ${k.padEnd(12)} ${v.toString().padStart(3)}  (${pct}%)  ${bar}`);
     }
-    // partial pnl distribution
-    const beCount  = r.trades.filter(t=>t.exit==="BE").length;
-    const tp2Count = r.trades.filter(t=>t.exit==="TP2").length;
-    const slCount  = r.trades.filter(t=>t.exit==="SL").length;
-    console.log(`\n  ผล Partial Exit:`);
-    console.log(`    ❌ SL full loss (-1R)       : ${slCount} เทรด`);
-    console.log(`    ✅ BE (half win +0.5R)       : ${beCount} เทรด`);
-    console.log(`    🎯 Full TP2 (+1.5R)          : ${tp2Count} เทรด`);
+    if (r.exitMode === "PARTIAL") {
+      const beCount  = r.trades.filter(t=>t.exit==="BE").length;
+      const tp2Count = r.trades.filter(t=>t.exit==="TP2").length;
+      const slCount  = r.trades.filter(t=>t.exit==="SL").length;
+      console.log(`\n  ผล Partial Exit:`);
+      console.log(`    ❌ SL full loss (-1R)        : ${slCount} เทรด`);
+      console.log(`    ✅ BE (half win +0.5R)        : ${beCount} เทรด`);
+      console.log(`    🎯 Full TP2 (+1.5R)           : ${tp2Count} เทรด`);
+    } else {
+      const trailCount = r.trades.filter(t=>t.exit==="TRAIL").length;
+      const slCount    = r.trades.filter(t=>t.exit==="SL").length;
+      const trailTrades = r.trades.filter(t=>t.exit==="TRAIL");
+      const avgTrailR  = trailTrades.length ? trailTrades.reduce((s,t)=>s+t.pnlR,0)/trailTrades.length : 0;
+      console.log(`\n  ผล Trail EMA8:`);
+      console.log(`    ❌ SL phase 1 (-1R)          : ${slCount} เทรด`);
+      console.log(`    🔀 Trail EMA8 hit             : ${trailCount} เทรด  avg ${avgTrailR.toFixed(2)}R`);
+    }
   }
 
   // equity curve รายเดือน
@@ -505,34 +590,37 @@ function printFullVsPartialAnalysis(allAssets) {
 
   console.log(`
 ┌─────────────────────────────────────────────────────────────┐
-│  วิเคราะห์ Full 2R vs Partial Exit                           │
+│  วิเคราะห์ Full 2R vs Partial vs Trail EMA8                  │
 └─────────────────────────────────────────────────────────────┘
 
-  📌 Full 2R Exit (ปิดทั้งหมดที่ 2R):
-     + Total R สูงกว่าถ้า WR ≥ 40% (win ทะลุ TP2 บ่อย)
-     + ง่ายต่อการ execute — ไม่ต้องจัดการ position
-     - Drawdown สูงกว่า — รอนาน บางเทรดเกือบถึง TP แล้วกลับ
-     - จิตใจกดดันกว่า เมื่อเทรดกลับจาก +1.8R → -1R
+  📌 Full 2R Exit:
+     + Total R สูงสุดเมื่อ WR ≥ 40% และตลาดมี strong trend
+     + execute ง่ายที่สุด — วาง order แล้วรอ
+     - Drawdown สูง / จิตใจกดดันเมื่อเทรดกลับจาก +1.8R → -1R
 
-  📌 Partial Exit 50%@1R → BE → 50%@2R:
-     + MaxDD ต่ำกว่า — เพราะ SL ย้าย BE หลัง 1R
-     + ลด "กลัวเสีย" ได้มาก จิตใจสบายกว่า → execute สม่ำเสมอกว่า
-     + เหมาะกับ market ที่ "retest แล้วไม่วิ่งแรง" — ยังเก็บ +0.5R ได้
-     - Total R ต่ำกว่าถ้า market มี strong trend (วิ่งตรง)
-     - Win Rate ดูต่ำกว่า แต่ Expectancy ต่อเทรดมักใกล้เคียงกัน
+  📌 Partial Exit (50%@1R → BE → 50%@2R):
+     + MaxDD ลดลง / WR สูงขึ้นในเชิงจำนวน
+     - TP2 hit rate ต่ำมาก (1-3 เทรด) → Total R ต่ำกว่า Full
+     - เหมาะตลาด sideway มากกว่า trending
 
-  ✅ แนะนำสำหรับแต่ละสินทรัพย์:
-     BTC/USDT  → Partial Exit (volatile สูง ราคามักกลับก่อนถึง 2R)
-     S&P 500   → Full 2R (trending อ่อน MaxDD ต่ำอยู่แล้ว ไม่จำเป็น)
-     ทองคำ     → Partial Exit (ผันผวนต่ำ วิ่งช้า ล็อค 1R ดีกว่ารอ 2R)
+  📌 Trail EMA8 (50%@1R → trail SL ตาม EMA8):
+     + จับ trend ยาวได้มากกว่า Partial — SL เดินตาม EMA8
+     + ถ้าตลาดวิ่งแรง (BTC bull) อาจได้ 3R-5R จากครึ่งที่เหลือ
+     + MaxDD ใกล้เคียง Partial แต่ Expectancy สูงกว่า
+     - ซับซ้อนกว่า ต้องติดตาม EMA8 ทุกวัน
 
-  💡 เพิ่มเติม — สิ่งที่ควร optimize ต่อ:
-     1. Trailing Stop หลัง 1R ด้วย EMA8 แทน Fixed BE
-        → จับ trend ยาวได้มากขึ้น เมื่อ BTC วิ่ง strong
-     2. Long-Only สำหรับ S&P500
-        → Short WR ต่ำกว่า BUY WR มาก ตัด SHORT ออกได้
-     3. Time filter — หลีกเลี่ยง entry ก่อน NFP/FOMC
-        → เพิ่ม WR ได้ในทางทฤษฎี แต่ต้องมี calendar data
+  ✅ ข้อสรุปแนะนำ:
+     BTC/USDT  → Trail EMA8 (volatile สูง จับ trend ได้ดีกว่า)
+     S&P 500   → Full 2R + Long-Only (SHORT WR ต่ำ ตัดออก)
+     ทองคำ     → Pinbar Full 2R (PF 2.10 ดีที่สุดในข้อมูลนี้)
+
+  💡 สิ่งที่ควรทดสอบต่อด้วยข้อมูลจริง:
+     1. รันบนข้อมูลจริง Binance/Yahoo จากเครื่องที่เข้า API ได้
+        → ผลที่ได้จาก synthetic GBM อาจต่างจากตลาดจริง
+     2. Long-Only filter สำหรับ S&P500
+        → SHORT WR = 0% ในบางช่วง ตัดออกน่าจะ PF ดีขึ้น
+     3. ปรับ TOUCH_BUFFER (ปัจจุบัน ±0.8%) ให้เหมาะแต่ละสินทรัพย์
+        → BTC อาจต้องกว้างกว่า (±1.5%) เพราะ volatile สูง
 `);
 }
 
@@ -541,10 +629,12 @@ function printFullVsPartialAnalysis(allAssets) {
 // ─────────────────────────────────────────────
 async function main() {
   const CONFIGS = [
-    { patternMode: "PINBAR", exitMode: "FULL"    },
-    { patternMode: "PINBAR", exitMode: "PARTIAL" },
-    { patternMode: "OB",     exitMode: "FULL"    },
-    { patternMode: "OB",     exitMode: "PARTIAL" },
+    { patternMode: "PINBAR", exitMode: "FULL"       },
+    { patternMode: "PINBAR", exitMode: "PARTIAL"    },
+    { patternMode: "PINBAR", exitMode: "TRAIL_EMA8" },
+    { patternMode: "OB",     exitMode: "FULL"       },
+    { patternMode: "OB",     exitMode: "PARTIAL"    },
+    { patternMode: "OB",     exitMode: "TRAIL_EMA8" },
   ];
 
   const assetDefs = [
@@ -605,11 +695,13 @@ async function main() {
     // quick compare table
     printCompareTable(def.label, results);
 
-    // detailed report: best FULL vs best PARTIAL
-    const bestFull    = results.filter(r=>r.exitMode==="FULL").sort((a,b)=>b.totalR-a.totalR)[0];
-    const bestPartial = results.filter(r=>r.exitMode==="PARTIAL").sort((a,b)=>b.totalR-a.totalR)[0];
-    printDetailedReport(bestFull,    def.label);
-    printDetailedReport(bestPartial, def.label);
+    // detailed report: best of each exit mode
+    const bestFull  = results.filter(r=>r.exitMode==="FULL").sort((a,b)=>b.totalR-a.totalR)[0];
+    const bestPart  = results.filter(r=>r.exitMode==="PARTIAL").sort((a,b)=>b.totalR-a.totalR)[0];
+    const bestTrail = results.filter(r=>r.exitMode==="TRAIL_EMA8").sort((a,b)=>b.totalR-a.totalR)[0];
+    printDetailedReport(bestFull,  def.label);
+    printDetailedReport(bestPart,  def.label);
+    printDetailedReport(bestTrail, def.label);
 
     allAssets.push({ label: def.label, results });
   }
