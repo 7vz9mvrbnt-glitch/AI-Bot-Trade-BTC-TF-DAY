@@ -1,9 +1,10 @@
 /**
  * GET /api/cron
  * Triggered by Vercel Cron at 00:00 UTC = 07:00 ICT every day
- * 1. คำนวณ BTC setup
- * 2. บันทึกลง Google Sheet แท็บ "Daily Log"
- * 3. Push Flex Message ไปยัง LINE Group
+ * วน loop ทุกเหรียญใน SYMBOLS:
+ *   1. คำนวณ setup
+ *   2. บันทึกลง Google Sheet แท็บ "Daily Log"
+ *   3. Push Flex Message ไปยัง LINE Group
  *
  * Security: ตรวจ Authorization header ที่ Vercel ส่งมาให้ (CRON_SECRET)
  */
@@ -12,6 +13,7 @@ const { fetchCandles } = require("../lib/binance");
 const { analyze, toSheetRow, buildAIComment } = require("../lib/analyze");
 const { appendRow } = require("../lib/sheets");
 const { pushMessage, buildSetupFlex } = require("../lib/line");
+const { SYMBOLS } = require("../lib/symbols");
 
 module.exports = async function handler(req, res) {
   const authHeader = req.headers["authorization"] || "";
@@ -21,35 +23,42 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const candles = await fetchCandles("BTCUSDT", 50);
-    const setup = analyze(candles, "BTCUSDT");
-    setup.aiComment = buildAIComment(setup);
-
-    const results = {};
-
-    try {
-      await appendRow("Daily Log", toSheetRow(setup));
-      results.sheet = "ok";
-    } catch (e) {
-      results.sheet = `error: ${e.message}`;
-      console.error("[cron] sheet error:", e.message);
-    }
-
     const targets = (process.env.LINE_PUSH_TARGETS || "").split(",").filter(Boolean);
-    const flex = buildSetupFlex(setup);
-    const lineResults = [];
-    for (const to of targets) {
-      try {
-        await pushMessage(to.trim(), [flex]);
-        lineResults.push({ to: to.trim(), status: "ok" });
-      } catch (e) {
-        lineResults.push({ to: to.trim(), status: `error: ${e.message}` });
-        console.error("[cron] LINE push error:", e.message);
-      }
-    }
-    results.line = lineResults;
+    const allResults = [];
 
-    return res.status(200).json({ ok: true, setup, results });
+    for (const { symbol } of SYMBOLS) {
+      const result = { symbol, sheet: null, line: [] };
+      try {
+        const candles = await fetchCandles(symbol, 50);
+        const setup = analyze(candles, symbol);
+        setup.aiComment = buildAIComment(setup);
+
+        try {
+          await appendRow("Daily Log", toSheetRow(setup));
+          result.sheet = "ok";
+        } catch (e) {
+          result.sheet = `error: ${e.message}`;
+          console.error(`[cron] sheet error (${symbol}):`, e.message);
+        }
+
+        const flex = buildSetupFlex(setup);
+        for (const to of targets) {
+          try {
+            await pushMessage(to.trim(), [flex]);
+            result.line.push({ to: to.trim(), status: "ok" });
+          } catch (e) {
+            result.line.push({ to: to.trim(), status: `error: ${e.message}` });
+            console.error(`[cron] LINE push error (${symbol}):`, e.message);
+          }
+        }
+      } catch (e) {
+        result.sheet = `fatal: ${e.message}`;
+        console.error(`[cron] fatal (${symbol}):`, e.message);
+      }
+      allResults.push(result);
+    }
+
+    return res.status(200).json({ ok: true, results: allResults });
   } catch (err) {
     console.error("[cron] fatal:", err.message);
     return res.status(500).json({ ok: false, error: err.message });

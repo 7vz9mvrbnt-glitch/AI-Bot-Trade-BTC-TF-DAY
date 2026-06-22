@@ -1,7 +1,7 @@
 /**
  * POST /api/webhook
  * LINE Messaging API webhook — รับ event จาก LINE OA
- * รองรับ: text message "BTC" หรือ "setup" → reply Flex setup ปัจจุบัน
+ * รองรับ: พิมพ์ชื่อเหรียญ เช่น BTC, ETH, BNB, XRP, SOL, PAXG → reply Flex setup
  *
  * Required env vars:
  *   LINE_CHANNEL_TOKEN   ← Channel access token
@@ -12,6 +12,7 @@ const crypto = require("crypto");
 const { fetchCandles } = require("../lib/binance");
 const { analyze, buildAIComment } = require("../lib/analyze");
 const { replyMessage, buildSetupFlex } = require("../lib/line");
+const { detectSymbol } = require("../lib/symbols");
 
 function verifySignature(body, signature, secret) {
   const hash = crypto
@@ -41,16 +42,14 @@ module.exports = async function handler(req, res) {
   for (const event of events) {
     if (event.type !== "message" || event.message?.type !== "text") continue;
 
-    const text = (event.message.text || "").trim().toLowerCase();
-    const isBtcQuery = ["btc", "setup", "บีทีซี", "วิเคราะห์"].some((kw) =>
-      text.includes(kw)
-    );
+    const text = (event.message.text || "").trim();
+    const symbol = detectSymbol(text);
 
-    if (!isBtcQuery) continue;
+    if (!symbol) continue;
 
     try {
-      const candles = await fetchCandles("BTCUSDT", 50);
-      const setup = analyze(candles, "BTCUSDT");
+      const candles = await fetchCandles(symbol, 50);
+      const setup = analyze(candles, symbol);
       setup.aiComment = buildAIComment(setup);
       const flex = buildSetupFlex(setup);
       await replyMessage(event.replyToken, [flex]);
