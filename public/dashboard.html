@@ -38,12 +38,27 @@
 
   <div class="controls">
     <select id="symbolSelect" onchange="loadSetup()">
-      <option value="BTCUSDT">BTC — Bitcoin</option>
-      <option value="ETHUSDT">ETH — Ethereum</option>
-      <option value="BNBUSDT">BNB — BNB</option>
-      <option value="XRPUSDT">XRP — Ripple</option>
-      <option value="SOLUSDT">SOL — Solana</option>
-      <option value="PAXGUSDT">PAXG — PAX Gold</option>
+      <optgroup label="── Crypto ──">
+        <option value="BTCUSDT">BTC — Bitcoin</option>
+        <option value="ETHUSDT">ETH — Ethereum</option>
+        <option value="BNBUSDT">BNB — BNB</option>
+        <option value="XRPUSDT">XRP — Ripple</option>
+        <option value="SOLUSDT">SOL — Solana</option>
+        <option value="PAXGUSDT">PAXG — PAX Gold</option>
+      </optgroup>
+      <optgroup label="── Magnificent 7 ──">
+        <option value="AAPL">AAPL — Apple</option>
+        <option value="MSFT">MSFT — Microsoft</option>
+        <option value="NVDA">NVDA — Nvidia</option>
+        <option value="GOOGL">GOOGL — Google</option>
+        <option value="AMZN">AMZN — Amazon</option>
+        <option value="META">META — Meta</option>
+        <option value="TSLA">TSLA — Tesla</option>
+      </optgroup>
+      <optgroup label="── Index ──">
+        <option value="^GSPC">S&amp;P 500</option>
+        <option value="^NDX">NASDAQ 100</option>
+      </optgroup>
     </select>
     <button class="refresh-btn" onclick="loadSetup()">🔄 รีเฟรช</button>
   </div>
@@ -68,7 +83,7 @@
         if (!data.ok) throw new Error(data.error || "Unknown error");
 
         const s = data.setup;
-        genAt.textContent = `อัปเดตเมื่อ: ${new Date(data.generatedAt).toLocaleString("th-TH")}`;
+        genAt.textContent = `${s.displayName || s.symbol} — อัปเดตเมื่อ: ${new Date(data.generatedAt).toLocaleString("th-TH")}`;
 
         const fmt = (n) => Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 

@@ -13,6 +13,7 @@ const { fetchCandles } = require("../lib/binance");
 const { analyze, buildAIComment } = require("../lib/analyze");
 const { replyMessage, buildSetupFlex } = require("../lib/line");
 const { detectSymbol } = require("../lib/symbols");
+const { fetchCandles: fetchYahoo } = require("../lib/yahoo");
 
 function verifySignature(body, signature, secret) {
   const hash = crypto
@@ -43,13 +44,15 @@ module.exports = async function handler(req, res) {
     if (event.type !== "message" || event.message?.type !== "text") continue;
 
     const text = (event.message.text || "").trim();
-    const symbol = detectSymbol(text);
+    const entry = detectSymbol(text);
 
-    if (!symbol) continue;
+    if (!entry) continue;
 
     try {
-      const candles = await fetchCandles(symbol, 50);
-      const setup = analyze(candles, symbol);
+      const fetcher = entry.source === "yahoo" ? fetchYahoo : fetchCandles;
+      const candles = await fetcher(entry.symbol, 50);
+      const setup = analyze(candles, entry.symbol);
+      setup.displayName = entry.displayName;
       setup.aiComment = buildAIComment(setup);
       const flex = buildSetupFlex(setup);
       await replyMessage(event.replyToken, [flex]);
