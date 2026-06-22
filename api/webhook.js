@@ -118,8 +118,8 @@ function buildHelpMessage() {
           ]),
           { type: "separator", margin: "md" },
           section("🌐 Index (Yahoo)", [
-            ["S&P / SP500", "S&P 500"],
-            ["NASDAQ / NDX / แนสแด็ก", "NASDAQ 100"],
+            ["S&P / SP500 / VOO / เอสแอนด์พี", "S&P 500"],
+            ["NASDAQ / NDX / QQQ / แนสแด็ก", "NASDAQ 100"],
           ]),
           { type: "separator", margin: "md" },
           {
