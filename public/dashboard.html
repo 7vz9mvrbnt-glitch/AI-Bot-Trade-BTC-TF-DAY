@@ -23,8 +23,9 @@
     .card-header .name { font-size: 0.8rem; color: rgba(255,255,255,0.8); margin-bottom: 2px; }
     .card-header .trade-note { font-size: 0.68rem; color: #d1fae5; margin-bottom: 6px; }
     .card-header .rec { font-size: 1.4rem; font-weight: 700; color: #fff; }
-    .header-UP   { background: #0a6628; }
-    .header-DOWN { background: #7f1d1d; }
+    .header-UP     { background: #0a6628; }
+    .header-DOWN   { background: #7f1d1d; }
+    .header-CLOSED { background: #374151; }
 
     .price-big { font-size: 1.6rem; font-weight: 700; margin-bottom: 12px; }
 
@@ -32,6 +33,8 @@
     .badge.UP, .badge.BUY { background: #0d4429; color: #3fb950; }
     .badge.DOWN, .badge.SHORT { background: #4d1010; color: #f85149; }
     .badge.WAIT, .badge.WATCH_PULLBACK { background: #3d3300; color: #d29922; }
+    .badge.CLOSED { background: #374151; color: #d1d5db; }
+    .market-closed-note { font-size: 0.72rem; color: #9ca3af; background: #1f2937; border-radius: 6px; padding: 6px 10px; margin-bottom: 10px; }
 
     .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 4px; }
     .stat label { display: block; font-size: 0.7rem; color: #8b949e; margin-bottom: 2px; }
@@ -108,13 +111,19 @@
     }
 
     function renderCard(s) {
+      const closed = s.marketClosed;
+      const headerCls = closed ? "header-CLOSED" : headerClass(s.trend);
+      const recLabel  = closed ? "🔒 ตลาดปิด" : s.recommendation;
       return `
-        <div class="card-header ${headerClass(s.trend)}">
+        <div class="card-header ${headerCls}">
           <div class="name">${escHtml(s.displayName || s.symbol)} · Daily</div>
           ${s.tradeNote ? `<div class="trade-note">${escHtml(s.tradeNote)}</div>` : ""}
-          <div class="rec">${s.recommendation}</div>
+          <div class="rec">${recLabel}</div>
+          ${closed && s.lastTradeDate ? `<div style="font-size:0.68rem;color:#e5e7eb;margin-top:4px">ข้อมูล ณ ${escHtml(s.lastTradeDate)}</div>` : ""}
         </div>
-        <span class="badge ${s.trend}">Trend: ${s.trend}</span>
+        ${closed ? `<div class="market-closed-note">⏰ ตลาดเปิด: ${escHtml(s.nextOpenICT || "—")}</div>` : ""}
+        <span class="badge ${closed ? "CLOSED" : s.trend}">Trend: ${s.trend}</span>
+        ${closed ? `<span class="badge CLOSED">คาดการณ์: ${s.recommendation}</span>` : ""}
         <div class="price-big">$${fmt(s.price)}</div>
         <div class="grid2">
           <div class="stat"><label>EMA 8</label><div class="val">$${fmt(s.ema8)}</div></div>

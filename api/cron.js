@@ -38,7 +38,7 @@ module.exports = async function handler(req, res) {
       try {
         const fetcher = source === "yahoo" ? fetchYahoo : fetchCandles;
         const candles = await fetcher(symbol, 50);
-        const setup = analyze(candles, symbol);
+        const setup = analyze(candles, symbol, source);
         setup.displayName = displayName;
         setup.tradeNote = entry.tradeNote;
         setup.aiComment = buildAIComment(setup);
