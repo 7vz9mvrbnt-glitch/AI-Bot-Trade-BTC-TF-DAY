@@ -1,7 +1,7 @@
 /**
  * GET /api/cron
  * Triggered by Vercel Cron at 00:00 UTC = 07:00 ICT every day
- * วน loop ทุกเหรียญใน SYMBOLS:
+ * วน loop ทุก symbol ใน SYMBOLS:
  *   1. คำนวณ setup
  *   2. บันทึกลง Google Sheet แท็บ "Daily Log"
  *   3. Push Flex Message ไปยัง LINE Group
@@ -10,6 +10,7 @@
  */
 
 const { fetchCandles } = require("../lib/binance");
+const { fetchCandles: fetchYahoo } = require("../lib/yahoo");
 const { analyze, toSheetRow, buildAIComment } = require("../lib/analyze");
 const { appendRow } = require("../lib/sheets");
 const { pushMessage, buildSetupFlex } = require("../lib/line");
@@ -26,11 +27,14 @@ module.exports = async function handler(req, res) {
     const targets = (process.env.LINE_PUSH_TARGETS || "").split(",").filter(Boolean);
     const allResults = [];
 
-    for (const { symbol } of SYMBOLS) {
+    for (const entry of SYMBOLS) {
+      const { symbol, source, displayName } = entry;
       const result = { symbol, sheet: null, line: [] };
       try {
-        const candles = await fetchCandles(symbol, 50);
+        const fetcher = source === "yahoo" ? fetchYahoo : fetchCandles;
+        const candles = await fetcher(symbol, 50);
         const setup = analyze(candles, symbol);
+        setup.displayName = displayName;
         setup.aiComment = buildAIComment(setup);
 
         try {

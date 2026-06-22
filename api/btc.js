@@ -1,13 +1,15 @@
 /**
  * GET /api/btc
- * Returns today's BTC setup as JSON for the dashboard
+ * Returns today's setup as JSON for the dashboard
  * Query params: ?symbol=BTCUSDT (default)
  *
  * CORS: open (*) — ให้ dashboard.html ที่เปิดในเบราว์เซอร์ fetch ได้โดยตรง
  */
 
 const { fetchCandles } = require("../lib/binance");
+const { fetchCandles: fetchYahoo } = require("../lib/yahoo");
 const { analyze } = require("../lib/analyze");
+const { SYMBOLS } = require("../lib/symbols");
 
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -24,8 +26,11 @@ module.exports = async function handler(req, res) {
 
   try {
     const symbol = req.query?.symbol || "BTCUSDT";
-    const candles = await fetchCandles(symbol, 50);
+    const entry = SYMBOLS.find((s) => s.symbol === symbol);
+    const fetcher = entry?.source === "yahoo" ? fetchYahoo : fetchCandles;
+    const candles = await fetcher(symbol, 50);
     const setup = analyze(candles, symbol);
+    setup.displayName = entry?.displayName || symbol;
     return res.status(200).json({ ok: true, setup, generatedAt: new Date().toISOString() });
   } catch (err) {
     console.error("[btc.js]", err.message);

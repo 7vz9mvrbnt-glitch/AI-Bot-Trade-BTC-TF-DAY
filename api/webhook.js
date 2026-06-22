@@ -1,7 +1,7 @@
 /**
  * POST /api/webhook
  * LINE Messaging API webhook — รับ event จาก LINE OA
- * รองรับ: พิมพ์ชื่อเหรียญ เช่น BTC, ETH, BNB, XRP, SOL, PAXG → reply Flex setup
+ * รองรับ: พิมพ์ชื่อเหรียญ/หุ้น เช่น BTC, ETH, AAPL, NVDA, nasdaq → reply Flex setup
  *
  * Required env vars:
  *   LINE_CHANNEL_TOKEN   ← Channel access token
@@ -10,6 +10,7 @@
 
 const crypto = require("crypto");
 const { fetchCandles } = require("../lib/binance");
+const { fetchCandles: fetchYahoo } = require("../lib/yahoo");
 const { analyze, buildAIComment } = require("../lib/analyze");
 const { replyMessage, buildSetupFlex } = require("../lib/line");
 const { detectSymbol } = require("../lib/symbols");
@@ -36,20 +37,21 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  console.log("WEBHOOK SOURCE:", JSON.stringify(req.body?.events?.map(e => e.source)));
   const events = req.body?.events || [];
 
   for (const event of events) {
     if (event.type !== "message" || event.message?.type !== "text") continue;
 
     const text = (event.message.text || "").trim();
-    const symbol = detectSymbol(text);
+    const entry = detectSymbol(text);
 
-    if (!symbol) continue;
+    if (!entry) continue;
 
     try {
-      const candles = await fetchCandles(symbol, 50);
-      const setup = analyze(candles, symbol);
+      const fetcher = entry.source === "yahoo" ? fetchYahoo : fetchCandles;
+      const candles = await fetcher(entry.symbol, 50);
+      const setup = analyze(candles, entry.symbol);
+      setup.displayName = entry.displayName;
       setup.aiComment = buildAIComment(setup);
       const flex = buildSetupFlex(setup);
       await replyMessage(event.replyToken, [flex]);
