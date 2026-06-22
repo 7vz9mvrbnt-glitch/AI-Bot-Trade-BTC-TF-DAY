@@ -38,9 +38,10 @@ module.exports = async function handler(req, res) {
       try {
         const fetcher = source === "yahoo" ? fetchYahoo : fetchCandles;
         const candles = await fetcher(symbol, 50);
-        const setup = analyze(candles, symbol, source);
+        const setup = analyze(candles, symbol, source, entry.mode);
         setup.displayName = displayName;
         setup.tradeNote = entry.tradeNote;
+        setup.mode = entry.mode || null;
         setup.aiComment = buildAIComment(setup);
 
         try {

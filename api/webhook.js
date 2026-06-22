@@ -60,9 +60,10 @@ module.exports = async function handler(req, res) {
     try {
       const fetcher = entry.source === "yahoo" ? fetchYahoo : fetchCandles;
       const candles = await fetcher(entry.symbol, 50);
-      const setup = analyze(candles, entry.symbol, entry.source);
+      const setup = analyze(candles, entry.symbol, entry.source, entry.mode);
       setup.displayName = entry.displayName;
       setup.tradeNote = entry.tradeNote;
+      setup.mode = entry.mode || null;
       setup.aiComment = buildAIComment(setup);
       const flex = buildSetupFlex(setup);
       await replyMessage(event.replyToken, [flex]);

@@ -23,9 +23,12 @@
     .card-header .name { font-size: 0.8rem; color: rgba(255,255,255,0.8); margin-bottom: 2px; }
     .card-header .trade-note { font-size: 0.68rem; color: #d1fae5; margin-bottom: 6px; }
     .card-header .rec { font-size: 1.4rem; font-weight: 700; color: #fff; }
-    .header-UP     { background: #0a6628; }
-    .header-DOWN   { background: #7f1d1d; }
-    .header-CLOSED { background: #374151; }
+    .header-UP          { background: #0a6628; }
+    .header-DOWN        { background: #7f1d1d; }
+    .header-CLOSED      { background: #374151; }
+    .header-ACCUMULATE  { background: #92400e; }
+    .header-PULLBACK    { background: #78350f; }
+    .header-WAIT-ACC    { background: #374151; }
 
     .price-big { font-size: 1.6rem; font-weight: 700; margin-bottom: 12px; }
 
@@ -34,6 +37,8 @@
     .badge.DOWN, .badge.SHORT { background: #4d1010; color: #f85149; }
     .badge.WAIT, .badge.WATCH_PULLBACK { background: #3d3300; color: #d29922; }
     .badge.CLOSED { background: #374151; color: #d1d5db; }
+    .badge.ACCUMULATE { background: #451a03; color: #fbbf24; }
+    .badge.ACC-WAIT { background: #1c1917; color: #a8a29e; }
     .market-closed-note { font-size: 0.72rem; color: #9ca3af; background: #1f2937; border-radius: 6px; padding: 6px 10px; margin-bottom: 10px; }
 
     .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 4px; }
@@ -106,13 +111,19 @@
       return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
     }
 
-    function headerClass(trend) {
-      return trend === "UP" ? "header-UP" : "header-DOWN";
+    function headerClass(s) {
+      if (s.marketClosed) return "header-CLOSED";
+      if (s.mode === "accumulate") {
+        if (s.recommendation === "ACCUMULATE") return "header-ACCUMULATE";
+        if (s.recommendation === "รอ PULLBACK") return "header-PULLBACK";
+        return "header-WAIT-ACC";
+      }
+      return s.trend === "UP" ? "header-UP" : "header-DOWN";
     }
 
     function renderCard(s) {
       const closed = s.marketClosed;
-      const headerCls = closed ? "header-CLOSED" : headerClass(s.trend);
+      const headerCls = headerClass(s);
       const recLabel  = closed ? "🔒 ตลาดปิด" : s.recommendation;
       return `
         <div class="card-header ${headerCls}">
@@ -122,8 +133,10 @@
           ${closed && s.lastTradeDate ? `<div style="font-size:0.68rem;color:#e5e7eb;margin-top:4px">ข้อมูล ณ ${escHtml(s.lastTradeDate)}</div>` : ""}
         </div>
         ${closed ? `<div class="market-closed-note">⏰ ตลาดเปิด: ${escHtml(s.nextOpenICT || "—")}</div>` : ""}
-        <span class="badge ${closed ? "CLOSED" : s.trend}">Trend: ${s.trend}</span>
-        ${closed ? `<span class="badge CLOSED">คาดการณ์: ${s.recommendation}</span>` : ""}
+        ${s.mode === "accumulate"
+          ? `<span class="badge ACCUMULATE">🟡 โหมดสะสม</span><span class="badge ${s.trend === "UP" ? "UP" : "DOWN"}">Trend: ${s.trend}</span><span class="badge ${s.recommendation === "ACCUMULATE" ? "ACCUMULATE" : "ACC-WAIT"}">${escHtml(s.recommendation)}</span>`
+          : `<span class="badge ${closed ? "CLOSED" : s.trend}">Trend: ${s.trend}</span>${closed ? `<span class="badge CLOSED">คาดการณ์: ${s.recommendation}</span>` : ""}`
+        }
         <div class="price-big">$${fmt(s.price)}</div>
         <div class="grid2">
           <div class="stat"><label>EMA 8</label><div class="val">$${fmt(s.ema8)}</div></div>

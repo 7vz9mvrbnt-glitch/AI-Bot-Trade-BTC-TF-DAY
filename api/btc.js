@@ -29,9 +29,10 @@ module.exports = async function handler(req, res) {
     const entry = SYMBOLS.find((s) => s.symbol === symbol);
     const fetcher = entry?.source === "yahoo" ? fetchYahoo : fetchCandles;
     const candles = await fetcher(symbol, 50);
-    const setup = analyze(candles, symbol, entry?.source);
+    const setup = analyze(candles, symbol, entry?.source, entry?.mode);
     setup.displayName = entry?.displayName || symbol;
     setup.tradeNote = entry?.tradeNote || "";
+    setup.mode = entry?.mode || null;
     return res.status(200).json({ ok: true, setup, generatedAt: new Date().toISOString() });
   } catch (err) {
     console.error("[btc.js]", err.message);
