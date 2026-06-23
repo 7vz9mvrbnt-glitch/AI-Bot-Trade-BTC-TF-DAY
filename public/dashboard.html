@@ -1,374 +1,524 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="th" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Daily Setup Dashboard</title>
+  <title>Trade Dashboard</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', sans-serif; background: #0d1117; color: #e6edf3; min-height: 100vh; padding: 24px; }
-    h1 { font-size: 1.4rem; margin-bottom: 4px; }
-    .sub { color: #8b949e; font-size: 0.85rem; margin-bottom: 20px; }
-    .controls { display: flex; gap: 10px; align-items: center; margin-bottom: 24px; flex-wrap: wrap; }
-    .refresh-btn { padding: 8px 20px; background: #238636; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
-    .refresh-btn:hover { background: #2ea043; }
+    /* ── Theme tokens ─────────────────────────────────────────── */
+    :root {
+      --accent:      #10b981;
+      --accent-dim:  #059669;
+      --accent-bg:   rgba(16,185,129,0.1);
+      --danger:      #ef4444;
+      --warn:        #f59e0b;
+      --up:          #10b981;
+      --down:        #ef4444;
+    }
+    [data-theme="dark"] {
+      --bg:          #0d1117;
+      --bg2:         #161b22;
+      --bg3:         #21262d;
+      --border:      #30363d;
+      --text:        #e6edf3;
+      --text-2:      #c9d1d9;
+      --text-muted:  #8b949e;
+      --shadow:      0 2px 12px rgba(0,0,0,0.4);
+    }
+    [data-theme="light"] {
+      --bg:          #f3f4f6;
+      --bg2:         #ffffff;
+      --bg3:         #f9fafb;
+      --border:      #e5e7eb;
+      --text:        #111827;
+      --text-2:      #374151;
+      --text-muted:  #9ca3af;
+      --shadow:      0 2px 12px rgba(0,0,0,0.08);
+    }
 
-    /* Grid — 3 คอลัมน์บน desktop, stack บน mobile */
-    .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-    @media (max-width: 900px) { .board { grid-template-columns: 1fr 1fr; } }
-    @media (max-width: 560px) { .board { grid-template-columns: 1fr; } }
+    /* ── Reset & base ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      transition: background 0.25s, color 0.25s;
+    }
 
-    .card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 0; }
-    /* Overview row — ชื่อ + ราคา + signal */
-    .card-overview { display: flex; align-items: center; gap: 12px; cursor: pointer; user-select: none; }
-    .card-overview:hover .toggle-btn { opacity: 1; }
-    .card-overview-left { flex: 1; min-width: 0; }
-    .card-overview-price { font-size: 1.3rem; font-weight: 700; margin-top: 2px; }
-    .card-overview-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
-    .signal-stars { font-size: 0.85rem; letter-spacing: 1px; }
-    .rsi-chip { font-size: 0.72rem; padding: 2px 8px; border-radius: 12px; font-weight: 600; }
-    .rsi-chip.oversold  { background: rgba(21,128,61,0.25); color: #4ade80; }
-    .rsi-chip.low       { background: rgba(21,128,61,0.15); color: #86efac; }
-    .rsi-chip.neutral   { background: rgba(75,85,99,0.2);   color: #9ca3af; }
-    .rsi-chip.high      { background: rgba(234,179,8,0.15);  color: #fbbf24; }
-    .rsi-chip.overbought{ background: rgba(220,38,38,0.2);   color: #f87171; }
-    .toggle-btn { font-size: 0.75rem; color: #8b949e; background: #21262d; border: 1px solid #30363d; border-radius: 6px; padding: 4px 10px; cursor: pointer; white-space: nowrap; flex-shrink: 0; opacity: 0.7; transition: opacity 0.15s; }
-    .toggle-btn:hover { background: #30363d; opacity: 1; }
-    /* Detail section — hidden by default */
-    .card-detail { overflow: hidden; max-height: 0; transition: max-height 0.3s ease; }
-    .card-detail.expanded { max-height: 1200px; }
-    .detail-inner { padding-top: 14px; }
-    .fib-meter { margin: 8px 0 12px; }
-    .fib-meter-label { font-size: 0.7rem; color: #8b949e; margin-bottom: 5px; }
-    .fib-meter-bar { position: relative; height: 8px; background: #21262d; border-radius: 4px; overflow: visible; margin-bottom: 4px; }
-    .fib-meter-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
-    .fib-meter-tick { position: absolute; top: -3px; width: 2px; height: 14px; background: #30363d; border-radius: 1px; }
-    .fib-meter-arrow { position: absolute; top: -7px; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 7px solid #fff; transform: translateX(-50%); }
-    .fib-zone-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; margin-top: 4px; }
-    .card-header { border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; }
-    .card-header .name { font-size: 0.8rem; color: rgba(255,255,255,0.8); margin-bottom: 2px; }
-    .card-header .trade-note { font-size: 0.68rem; color: #d1fae5; margin-bottom: 6px; }
-    .card-header .rec { font-size: 1.4rem; font-weight: 700; color: #fff; }
-    .header-UP          { background: #0a6628; }
-    .header-DOWN        { background: #7f1d1d; }
-    .header-CLOSED      { background: #374151; }
-    .header-ACCUMULATE  { background: #92400e; }
-    .header-PULLBACK    { background: #78350f; }
-    .header-WAIT-ACC    { background: #374151; }
-    .header-IND-UP      { background: #1e3a5f; }
-    .header-IND-DOWN    { background: #4a1942; }
+    /* ── Top nav ──────────────────────────────────────────────── */
+    .nav {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      height: 56px;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: var(--shadow);
+    }
+    .nav-brand { display: flex; align-items: center; gap: 10px; }
+    .nav-brand .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--accent); box-shadow: 0 0 6px var(--accent);
+    }
+    .nav-brand h1 { font-size: 1rem; font-weight: 700; letter-spacing: -0.3px; }
+    .nav-actions { display: flex; align-items: center; gap: 8px; }
+    .btn-icon {
+      width: 36px; height: 36px; border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg3);
+      color: var(--text-2);
+      cursor: pointer; font-size: 1rem;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s;
+    }
+    .btn-icon:hover { background: var(--bg3); border-color: var(--accent); color: var(--accent); }
+    .btn-primary {
+      padding: 7px 16px; border-radius: 8px;
+      background: var(--accent); color: #fff;
+      border: none; cursor: pointer; font-size: 0.83rem; font-weight: 600;
+      transition: background 0.15s;
+    }
+    .btn-primary:hover { background: var(--accent-dim); }
+    #lastUpdate { font-size: 0.72rem; color: var(--text-muted); }
 
-    .price-big { font-size: 1.6rem; font-weight: 700; margin-bottom: 12px; }
+    /* ── Page layout ──────────────────────────────────────────── */
+    .page { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
 
-    /* Macro dashboard */
-    .macro-board { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 20px; margin-bottom: 8px; }
-    @media (max-width: 900px) { .macro-board { grid-template-columns: 1fr 1fr; } }
-    @media (max-width: 560px) { .macro-board { grid-template-columns: 1fr; } }
-    .macro-signal { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; }
-    .macro-signal h3 { font-size: 0.9rem; color: #e6edf3; margin-bottom: 12px; }
-    .signal-row { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid #21262d; font-size: 0.8rem; }
+    /* ── Section label ────────────────────────────────────────── */
+    .section-label {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-muted);
+      margin: 28px 0 12px;
+    }
+
+    /* ── Card grid ────────────────────────────────────────────── */
+    .card-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+    @media (max-width: 860px) { .card-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 520px) { .card-grid { grid-template-columns: 1fr; } }
+    .card-grid-2 { grid-template-columns: 1fr 1fr; }
+    @media (max-width: 600px) { .card-grid-2 { grid-template-columns: 1fr; } }
+
+    /* ── Card shell ───────────────────────────────────────────── */
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      transition: box-shadow 0.2s;
+    }
+    .card:hover { box-shadow: 0 4px 20px rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.3); }
+
+    /* ── Card header strip ────────────────────────────────────── */
+    .card-strip {
+      padding: 14px 16px 12px;
+      position: relative;
+    }
+    .strip-UP        { background: linear-gradient(135deg,#064e3b,#065f46); }
+    .strip-DOWN      { background: linear-gradient(135deg,#450a0a,#7f1d1d); }
+    .strip-CLOSED    { background: linear-gradient(135deg,#1f2937,#374151); }
+    .strip-ACC       { background: linear-gradient(135deg,#451a03,#78350f); }
+    .strip-ACC-WAIT  { background: linear-gradient(135deg,#1c1917,#292524); }
+    .strip-IND-UP    { background: linear-gradient(135deg,#0c1a2e,#1e3a5f); }
+    .strip-IND-DOWN  { background: linear-gradient(135deg,#1a0828,#4a1942); }
+    .strip-name  { font-size: 0.72rem; color: rgba(255,255,255,0.65); margin-bottom: 2px; }
+    .strip-trade { font-size: 0.64rem; color: rgba(255,255,255,0.45); margin-bottom: 6px; line-height: 1.4; }
+    .strip-rec   { font-size: 1.15rem; font-weight: 700; color: #fff; line-height: 1.2; }
+    .strip-score { position: absolute; top: 14px; right: 14px; font-size: 0.8rem; letter-spacing: 1px; }
+
+    /* ── Card overview body ───────────────────────────────────── */
+    .card-body { padding: 14px 16px; }
+    .price-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+    .price-big { font-size: 1.5rem; font-weight: 700; }
+    .price-sub { font-size: 0.75rem; color: var(--text-muted); }
+
+    /* ── Chip row ─────────────────────────────────────────────── */
+    .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 3px;
+      padding: 3px 9px; border-radius: 20px;
+      font-size: 0.7rem; font-weight: 600; letter-spacing: 0.02em;
+    }
+    .chip-up      { background: rgba(16,185,129,0.15); color: #34d399; }
+    .chip-down    { background: rgba(239,68,68,0.15);  color: #f87171; }
+    .chip-warn    { background: rgba(245,158,11,0.15); color: #fbbf24; }
+    .chip-neutral { background: var(--bg3); color: var(--text-muted); border: 1px solid var(--border); }
+    .chip-accent  { background: var(--accent-bg); color: var(--accent); }
+
+    /* ── Toggle row ───────────────────────────────────────────── */
+    .detail-toggle {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px;
+      border-top: 1px solid var(--border);
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .detail-toggle:hover { background: var(--bg3); color: var(--accent); }
+    .detail-toggle .arrow { font-size: 0.65rem; transition: transform 0.25s; }
+    .detail-toggle.open .arrow { transform: rotate(180deg); }
+
+    /* ── Detail section ───────────────────────────────────────── */
+    .card-detail { max-height: 0; overflow: hidden; transition: max-height 0.35s ease; }
+    .card-detail.expanded { max-height: 1400px; }
+    .card-detail-inner { padding: 14px 16px 16px; border-top: 1px solid var(--border); }
+
+    /* ── Stat rows ────────────────────────────────────────────── */
+    .stat-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.82rem;
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-row .label { color: var(--text-muted); }
+    .stat-row .value { font-weight: 600; color: var(--text); }
+    .stat-row .value.up   { color: var(--up); }
+    .stat-row .value.down { color: var(--down); }
+    .stat-row .value.warn { color: var(--warn); }
+
+    /* ── Fib meter ────────────────────────────────────────────── */
+    .fib-section { margin: 12px 0 4px; }
+    .fib-label { font-size: 0.68rem; color: var(--text-muted); margin-bottom: 6px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+    .fib-bar-wrap { position: relative; height: 6px; background: var(--bg3); border-radius: 4px; margin-bottom: 6px; }
+    .fib-bar-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+    .fib-tick { position: absolute; top: -3px; width: 2px; height: 12px; background: var(--border); border-radius: 1px; }
+    .fib-arrow { position: absolute; top: -6px; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 6px solid var(--text); transform: translateX(-50%); }
+    .fib-ends { display: flex; justify-content: space-between; font-size: 0.6rem; color: var(--text-muted); }
+    .fib-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      margin-top: 6px; padding: 3px 10px; border-radius: 20px;
+      font-size: 0.7rem; font-weight: 700;
+    }
+
+    /* ── AI comment ───────────────────────────────────────────── */
+    .ai-box {
+      margin-top: 12px;
+      padding: 10px 12px;
+      background: var(--accent-bg);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+      font-size: 0.74rem;
+      color: var(--text-2);
+      line-height: 1.65;
+      white-space: pre-line;
+    }
+    .ai-box-title { font-size: 0.68rem; color: var(--accent); font-weight: 700; margin-bottom: 4px; }
+
+    /* ── Macro wide card ──────────────────────────────────────── */
+    .macro-wide {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 16px; overflow: hidden; box-shadow: var(--shadow);
+    }
+    .macro-grid { display: grid; grid-template-columns: 1fr 1fr 2fr; }
+    @media (max-width: 700px) { .macro-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 440px) { .macro-grid { grid-template-columns: 1fr; } }
+    .macro-cell { padding: 16px; border-right: 1px solid var(--border); }
+    .macro-cell:last-child { border-right: none; }
+    .macro-cell-title { font-size: 0.68rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
+    .signal-row { display: flex; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 0.78rem; align-items: flex-start; }
     .signal-row:last-child { border-bottom: none; }
-    .signal-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
-    .signal-text { line-height: 1.5; color: #c9d1d9; }
-    .signal-text strong { color: #e6edf3; }
+    .signal-icon { flex-shrink: 0; }
+    .signal-text { color: var(--text-2); line-height: 1.5; }
+    .signal-text strong { color: var(--text); }
 
-    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-weight: 700; font-size: 0.78rem; margin-right: 6px; margin-bottom: 12px; }
-    .badge.UP, .badge.BUY { background: #0d4429; color: #3fb950; }
-    .badge.DOWN, .badge.SHORT { background: #4d1010; color: #f85149; }
-    .badge.WAIT, .badge.WATCH_PULLBACK { background: #3d3300; color: #d29922; }
-    .badge.CLOSED { background: #374151; color: #d1d5db; }
-    .badge.ACCUMULATE { background: #451a03; color: #fbbf24; }
-    .badge.ACC-WAIT { background: #1c1917; color: #a8a29e; }
-    .market-closed-note { font-size: 0.72rem; color: #9ca3af; background: #1f2937; border-radius: 6px; padding: 6px 10px; margin-bottom: 10px; }
+    /* ── Search section ───────────────────────────────────────── */
+    .search-bar { display: flex; gap: 8px; }
+    select {
+      flex: 1; padding: 9px 12px;
+      background: var(--bg2); color: var(--text);
+      border: 1px solid var(--border); border-radius: 10px;
+      font-size: 0.85rem; cursor: pointer;
+      appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238b949e' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center;
+      padding-right: 32px;
+    }
+    select:focus { outline: none; border-color: var(--accent); }
+    .search-result { margin-top: 14px; }
+    .search-result .card { max-width: 440px; }
 
-    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 4px; }
-    .stat label { display: block; font-size: 0.7rem; color: #8b949e; margin-bottom: 2px; }
-    .stat .val { font-size: 0.95rem; font-weight: 600; }
-    .sep { border: none; border-top: 1px solid #30363d; margin: 12px 0; }
-    .note { font-size: 0.72rem; color: #8b949e; }
-    .ai-comment { background: #0d1f0d; border: 1px solid #1f4a1f; border-radius: 8px; padding: 10px; margin-top: 12px; font-size: 0.75rem; color: #9ecfa4; line-height: 1.6; white-space: pre-line; }
-    .ai-comment-title { font-size: 0.72rem; color: #3fb950; font-weight: 700; margin-bottom: 4px; }
-    .loading { color: #8b949e; font-size: 0.9rem; }
-    .error-msg { color: #f85149; font-size: 0.85rem; }
-
-    /* สำหรับดู symbol อื่นๆ */
-    .divider { border: none; border-top: 1px solid #21262d; margin: 32px 0; }
-    .section-title { font-size: 0.85rem; color: #8b949e; margin-bottom: 16px; }
-    .mini-controls { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
-    select { background: #161b22; color: #e6edf3; border: 1px solid #30363d; border-radius: 6px; padding: 6px 10px; font-size: 0.85rem; cursor: pointer; }
-    .mini-card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; max-width: 420px; }
+    /* ── Misc ─────────────────────────────────────────────────── */
+    .loading-text { color: var(--text-muted); font-size: 0.85rem; padding: 16px; }
+    .error-text   { color: var(--down); font-size: 0.85rem; padding: 16px; }
+    .sep { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
+    .market-closed-note {
+      font-size: 0.7rem; color: var(--text-muted);
+      padding: 6px 10px; margin-bottom: 8px;
+      background: var(--bg3); border-radius: 6px;
+    }
   </style>
 </head>
 <body>
-  <h1>📊 Daily Setup — BTC · ทอง · S&P500</h1>
-  <p class="sub" id="lastUpdate">กำลังโหลด...</p>
 
-  <div class="controls">
-    <button class="refresh-btn" onclick="loadAll()">🔄 รีเฟรช</button>
-  </div>
+  <!-- ── Navigation ── -->
+  <nav class="nav">
+    <div class="nav-brand">
+      <div class="dot"></div>
+      <h1>Trade Dashboard</h1>
+    </div>
+    <div class="nav-actions">
+      <span id="lastUpdate"></span>
+      <button class="btn-icon" onclick="toggleTheme()" title="เปลี่ยนธีม" id="themeBtn">🌙</button>
+      <button class="btn-primary" onclick="loadAll()">↻ รีเฟรช</button>
+    </div>
+  </nav>
 
-  <!-- บอร์ดหลัก 3 การ์ด -->
-  <div class="board">
-    <div class="card" id="card-BTCUSDT"><p class="loading">⏳ BTC...</p></div>
-    <div class="card" id="card-PAXGUSDT"><p class="loading">⏳ PAXG / ทอง...</p></div>
-    <div class="card" id="card-VOO"><p class="loading">⏳ VOO / S&amp;P 500...</p></div>
-  </div>
+  <div class="page">
 
-  <hr class="divider"/>
+    <!-- ── Main assets ── -->
+    <p class="section-label">สินทรัพย์หลัก</p>
+    <div class="card-grid" id="main-grid">
+      <div class="card"><div class="loading-text">⏳ BTC...</div></div>
+      <div class="card"><div class="loading-text">⏳ PAXG / ทอง...</div></div>
+      <div class="card"><div class="loading-text">⏳ VOO / S&amp;P 500...</div></div>
+    </div>
 
-  <!-- Macro Dashboard -->
-  <p class="section-title">🌍 ภาพรวมตลาดมหภาค — น้ำมัน & ดอลลาร์</p>
-  <div class="macro-board" id="macro-board">
-    <div class="card" id="card-CL=F"><p class="loading">⏳ น้ำมัน WTI...</p></div>
-    <div class="card" id="card-DXY"><p class="loading">⏳ DXY...</p></div>
-    <div id="macro-signal-box"><p class="loading">⏳ กำลังวิเคราะห์...</p></div>
-  </div>
+    <!-- ── Macro ── -->
+    <p class="section-label">ปัจจัยมหภาค</p>
+    <div class="macro-wide" id="macro-wide">
+      <div class="macro-grid" id="macro-grid">
+        <div class="macro-cell"><div class="loading-text">⏳ น้ำมัน WTI...</div></div>
+        <div class="macro-cell"><div class="loading-text">⏳ DXY...</div></div>
+        <div class="macro-cell"><div class="loading-text">⏳ กำลังวิเคราะห์...</div></div>
+      </div>
+    </div>
 
-  <hr class="divider"/>
+    <!-- ── Search ── -->
+    <p class="section-label">ดู Setup สินทรัพย์อื่น</p>
+    <div class="search-bar">
+      <select id="symbolSelect">
+        <optgroup label="── Crypto ──">
+          <option value="ETHUSDT">ETH — Ethereum</option>
+          <option value="BNBUSDT">BNB — BNB</option>
+          <option value="XRPUSDT">XRP — Ripple</option>
+          <option value="SOLUSDT">SOL — Solana</option>
+        </optgroup>
+        <optgroup label="── Magnificent 7 ──">
+          <option value="AAPL">AAPL — Apple</option>
+          <option value="MSFT">MSFT — Microsoft</option>
+          <option value="NVDA">NVDA — Nvidia</option>
+          <option value="GOOGL">GOOGL — Google</option>
+          <option value="AMZN">AMZN — Amazon</option>
+          <option value="META">META — Meta</option>
+          <option value="TSLA">TSLA — Tesla</option>
+          <option value="MU">MU — Micron Technology</option>
+        </optgroup>
+        <optgroup label="── ETF ──">
+          <option value="QQQ">QQQ — NASDAQ 100 ETF</option>
+          <option value="VOO">VOO — S&amp;P 500 ETF</option>
+        </optgroup>
+        <optgroup label="── ตัวชี้วัดมหภาค ──">
+          <option value="CL=F">น้ำมัน WTI Crude</option>
+          <option value="DX-Y.NYB">DXY — ดัชนีดอลลาร์</option>
+        </optgroup>
+      </select>
+      <button class="btn-primary" onclick="loadOther()">ดู Setup</button>
+    </div>
+    <div class="search-result" id="search-result"></div>
 
-  <!-- ส่วนค้นหาสินทรัพย์อื่น -->
-  <p class="section-title">🔍 ดู Setup สินทรัพย์อื่น</p>
-  <div class="mini-controls">
-    <select id="symbolSelect">
-      <optgroup label="── Crypto ──">
-        <option value="ETHUSDT">ETH — Ethereum</option>
-        <option value="BNBUSDT">BNB — BNB</option>
-        <option value="XRPUSDT">XRP — Ripple</option>
-        <option value="SOLUSDT">SOL — Solana</option>
-      </optgroup>
-      <optgroup label="── Magnificent 7 ──">
-        <option value="AAPL">AAPL — Apple</option>
-        <option value="MSFT">MSFT — Microsoft</option>
-        <option value="NVDA">NVDA — Nvidia</option>
-        <option value="GOOGL">GOOGL — Google</option>
-        <option value="AMZN">AMZN — Amazon</option>
-        <option value="META">META — Meta</option>
-        <option value="TSLA">TSLA — Tesla</option>
-        <option value="MU">MU — Micron Technology</option>
-      </optgroup>
-      <optgroup label="── ETF ──">
-        <option value="QQQ">QQQ — NASDAQ 100 ETF</option>
-        <option value="VOO">VOO — S&P 500 ETF</option>
-      </optgroup>
-      <optgroup label="── ตัวชี้วัดมหภาค ──">
-        <option value="CL=F">น้ำมัน WTI Crude</option>
-        <option value="DX-Y.NYB">DXY — ดัชนีดอลลาร์</option>
-      </optgroup>
-    </select>
-    <button class="refresh-btn" onclick="loadOther()">ดู Setup</button>
-  </div>
-  <div class="mini-card" id="other-card" style="display:none"></div>
+  </div><!-- /page -->
 
   <script>
     const BACKEND_URL = window.location.origin;
     const fmt = (n) => Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const esc = (s) => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
-    function escHtml(str) {
-      return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    // ── Theme ──────────────────────────────────────────────────
+    function toggleTheme() {
+      const html = document.documentElement;
+      const next = html.dataset.theme === "dark" ? "light" : "dark";
+      html.dataset.theme = next;
+      document.getElementById("themeBtn").textContent = next === "dark" ? "🌙" : "☀️";
+      localStorage.setItem("theme", next);
+    }
+    (function initTheme() {
+      const saved = localStorage.getItem("theme") || "dark";
+      document.documentElement.dataset.theme = saved;
+      document.getElementById("themeBtn").textContent = saved === "dark" ? "🌙" : "☀️";
+    })();
+
+    // ── Strip class ────────────────────────────────────────────
+    function stripClass(s) {
+      if (s.marketClosed) return "strip-CLOSED";
+      if (s.mode === "indicator") return s.trend === "UP" ? "strip-IND-UP" : "strip-IND-DOWN";
+      if (s.mode === "accumulate") {
+        if (s.recommendation?.startsWith("สะสมที่ Fib")) return "strip-ACC";
+        if (s.recommendation === "รอ PULLBACK" || s.recommendation?.includes("ยังแพง")) return "strip-ACC-WAIT";
+        return "strip-ACC-WAIT";
+      }
+      return s.trend === "UP" ? "strip-UP" : "strip-DOWN";
     }
 
+    // ── Fib meter ──────────────────────────────────────────────
     function renderFibMeter(s) {
       if (!s.fibLevels || !s.fibZone) return "";
-      const fib = s.fibLevels;
       const range = s.swingHigh - s.swingLow;
-      // Fib tick positions (% จาก swingLow)
       const ticks = [
-        { pct: ((fib.f786 - s.swingLow) / range * 100).toFixed(1), label: "78.6%" },
-        { pct: ((fib.f650 - s.swingLow) / range * 100).toFixed(1), label: "65%" },
-        { pct: ((fib.f618 - s.swingLow) / range * 100).toFixed(1), label: "61.8%" },
-        { pct: ((fib.f500 - s.swingLow) / range * 100).toFixed(1), label: "50%" },
-        { pct: ((fib.f382 - s.swingLow) / range * 100).toFixed(1), label: "38.2%" },
-        { pct: ((fib.f236 - s.swingLow) / range * 100).toFixed(1), label: "23.6%" },
-      ];
-      // สีแถบตาม zone
-      const fillColor = s.fibZone.color;
-      const fillPct = Math.min(100, Math.max(0, s.fibZone.pricePct));
-      const badgeBg = s.fibZone.isDCAZone ? "rgba(21,128,61,0.25)" : "rgba(75,85,99,0.25)";
+        (s.fibLevels.f786 - s.swingLow) / range * 100,
+        (s.fibLevels.f650 - s.swingLow) / range * 100,
+        (s.fibLevels.f618 - s.swingLow) / range * 100,
+        (s.fibLevels.f500 - s.swingLow) / range * 100,
+        (s.fibLevels.f382 - s.swingLow) / range * 100,
+      ].map(p => `<div class="fib-tick" style="left:${p.toFixed(1)}%"></div>`).join("");
+      const fill = Math.min(100, Math.max(0, s.fibZone.pricePct));
+      const badgeBg = s.fibZone.isDCAZone ? "rgba(16,185,129,0.15)" : "rgba(75,85,99,0.15)";
       const badgeColor = s.fibZone.color;
-
       return `
-        <div class="fib-meter">
-          <div class="fib-meter-label">📍 ตำแหน่งราคาใน Fib</div>
-          <div class="fib-meter-bar">
-            <div class="fib-meter-fill" style="width:${fillPct}%;background:${fillColor}"></div>
-            ${ticks.map(t => `<div class="fib-meter-tick" style="left:${t.pct}%" title="${t.label}"></div>`).join("")}
-            <div class="fib-meter-arrow" style="left:${fillPct}%"></div>
+        <div class="fib-section">
+          <div class="fib-label">ตำแหน่ง Fibonacci</div>
+          <div class="fib-bar-wrap">
+            <div class="fib-bar-fill" style="width:${fill}%;background:${esc(s.fibZone.color)}"></div>
+            ${ticks}
+            <div class="fib-arrow" style="left:${fill}%"></div>
           </div>
-          <div style="display:flex;justify-content:space-between;font-size:0.58rem;color:#6b7280;margin-top:2px">
-            <span>$${fmt(s.swingLow)}</span><span style="font-size:0.6rem;color:#8b949e">← DCA zone ↑</span><span>$${fmt(s.swingHigh)}</span>
+          <div class="fib-ends">
+            <span>$${fmt(s.swingLow)}</span>
+            <span>$${fmt(s.swingHigh)}</span>
           </div>
-          <div class="fib-zone-badge" style="background:${badgeBg};color:${badgeColor};border:1px solid ${fillColor}33">
-            ${escHtml(s.fibZone.emoji)} ${escHtml(s.fibZone.label)}
+          <div class="fib-badge" style="background:${badgeBg};color:${badgeColor}">
+            ${esc(s.fibZone.emoji)} ${esc(s.fibZone.label)}
           </div>
         </div>`;
     }
 
-    function headerClass(s) {
-      if (s.marketClosed) return "header-CLOSED";
-      if (s.mode === "indicator") return s.trend === "UP" ? "header-IND-UP" : "header-IND-DOWN";
-      if (s.mode === "accumulate") {
-        if (s.recommendation && s.recommendation.startsWith("สะสมที่ Fib")) return "header-ACCUMULATE";
-        if (s.recommendation === "รอ PULLBACK" || (s.recommendation && s.recommendation.includes("ยังแพง"))) return "header-PULLBACK";
-        return "header-WAIT-ACC";
-      }
-      return s.trend === "UP" ? "header-UP" : "header-DOWN";
-    }
-
-    function renderMacroSignal(dxy, oil) {
-      if (!dxy || !oil) return "";
-      const dxyUp = dxy.trend === "UP", oilUp = oil.trend === "UP";
-      const dxyPct = dxy.fibZone ? dxy.fibZone.pricePct : 50;
-      const oilPct = oil.fibZone ? oil.fibZone.pricePct : 50;
-
-      let signals = [];
-
-      // DXY analysis
-      if (dxyUp) {
-        signals.push({ icon: "⚠️", text: "<strong>ดอลลาร์แข็งค่า (DXY ขาขึ้น)</strong> — กดดัน Crypto และทองคำ" });
-      } else {
-        signals.push({ icon: "✅", text: "<strong>ดอลลาร์อ่อนค่า (DXY ขาลง)</strong> — เอื้อต่อ Crypto, ทองคำ และ Emerging Markets" });
-      }
-
-      // Oil analysis
-      if (oilUp) {
-        signals.push({ icon: "⚠️", text: "<strong>น้ำมันแพงขึ้น</strong> — เพิ่มแรงกดดันเงินเฟ้อ อาจชะลอการลดดอกเบี้ย" });
-      } else {
-        signals.push({ icon: "✅", text: "<strong>น้ำมันราคาลง</strong> — ลดแรงกดดันเงินเฟ้อ เอื้อต่อนโยบายดอกเบี้ยผ่อนคลาย" });
-      }
-
-      // Combined outlook
-      let outlook, outlookIcon;
-      if (!dxyUp && !oilUp) {
-        outlookIcon = "🟢"; outlook = "สภาพแวดล้อมเอื้อต่อการลงทุน — ดอลลาร์อ่อน + น้ำมันถูก เหมาะสะสม BTC / หุ้น / ทอง";
-      } else if (!dxyUp && oilUp) {
-        outlookIcon = "🟡"; outlook = "ระวังเงินเฟ้อ — ดอลลาร์อ่อนดีต่อ Crypto แต่น้ำมันแพงกดดัน Fed อาจชะลอลดดอกเบี้ย";
-      } else if (dxyUp && !oilUp) {
-        outlookIcon = "🟡"; outlook = "Risk-off — ดอลลาร์แข็งกดดัน Crypto/ทอง แต่น้ำมันถูกช่วยลดเงินเฟ้อ ตลาดยังทรง";
-      } else {
-        outlookIcon = "🔴"; outlook = "สภาพแวดล้อมยาก — ดอลลาร์แข็ง + น้ำมันแพง = Stagflation risk ระวังความเสี่ยงสูง";
-      }
-      signals.push({ icon: outlookIcon, text: `<strong>ภาพรวม:</strong> ${outlook}` });
-
-      // Fib position context
-      if (dxyPct > 70) {
-        signals.push({ icon: "📌", text: `DXY อยู่สูง (${dxyPct.toFixed(0)}% ของช่วงราคา) — ดอลลาร์ใกล้แนวต้าน อาจเริ่มอ่อนค่า` });
-      } else if (dxyPct < 30) {
-        signals.push({ icon: "📌", text: `DXY อยู่ต่ำ (${dxyPct.toFixed(0)}% ของช่วงราคา) — ดอลลาร์ใกล้แนวรับ อาจเริ่มแข็งค่า` });
-      }
-
-      return `
-        <div class="macro-signal">
-          <h3>🌍 บทวิเคราะห์ตลาดมหภาค</h3>
-          ${signals.map(s => `
-            <div class="signal-row">
-              <span class="signal-icon">${s.icon}</span>
-              <span class="signal-text">${s.text}</span>
-            </div>`).join("")}
+    // ── Fib levels table ───────────────────────────────────────
+    function renderFibLevels(s) {
+      if (!s.fibLevels) return "";
+      const f = s.fibLevels;
+      const hi = (k, label) => `
+        <div class="stat-row">
+          <span class="label">${label}</span>
+          <span class="value ${s.nearFib === label ? 'warn' : ''}">$${fmt(f[k])}</span>
         </div>`;
+      return `
+        <div class="sep"></div>
+        <div style="font-size:0.68rem;color:var(--warn);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">
+          📐 โซน Fibonacci
+        </div>
+        ${hi("f500","50%")}${hi("f618","61.8%")}${hi("f650","65%")}${hi("f786","78.6%")}`;
     }
 
-    let _detailCounter = 0;
-    function renderCard(s, alwaysExpanded = false) {
+    // ── Card HTML ──────────────────────────────────────────────
+    let _uid = 0;
+    function renderCard(s, expanded = false) {
+      const id = "d" + (_uid++);
       const closed = s.marketClosed;
-      const headerCls = headerClass(s);
-      const recLabel  = closed ? "🔒 ตลาดปิด" : s.recommendation;
-      const uid = `det-${_detailCounter++}`;
+      const rec = closed ? "🔒 ตลาดปิด" : esc(s.recommendation);
 
-      // ── Signal stars
-      const stars = s.signalScore
-        ? `<span class="signal-stars" title="Signal Score: ${escHtml(s.signalScore.label)}">${escHtml(s.signalScore.emoji)}</span>`
+      // chips
+      const trendChip = closed
+        ? `<span class="chip chip-neutral">ตลาดปิด</span>`
+        : s.trend === "UP"
+          ? `<span class="chip chip-up">▲ ขาขึ้น</span>`
+          : `<span class="chip chip-down">▼ ขาลง</span>`;
+      const weeklyChip = s.weeklyTrend
+        ? `<span class="chip ${s.weeklyTrend === "UP" ? "chip-up" : "chip-down"}">W: ${s.weeklyTrend}</span>`
         : "";
+      const rsiChip = s.rsi
+        ? `<span class="chip chip-${s.rsi.zone}">${esc(s.rsi.emoji)} ${esc(s.rsi.label)}</span>` : "";
+      const macdChip = s.macd?.cross === "bullish"
+        ? `<span class="chip chip-up">⚡ Bullish</span>`
+        : s.macd?.cross === "bearish"
+          ? `<span class="chip chip-down">⚡ Bearish</span>` : "";
 
-      // ── RSI chip
-      let rsiChip = "";
-      if (s.rsi) {
-        rsiChip = `<span class="rsi-chip ${s.rsi.zone}" title="RSI ${s.rsi.value}">${escHtml(s.rsi.emoji)} ${escHtml(s.rsi.label)}</span>`;
-      }
+      // detail
+      const fibContent = s.mode === "accumulate" ? renderFibLevels(s) : `
+        <div class="stat-row"><span class="label">Entry Zone</span><span class="value">$${fmt(s.entryLow)} – $${fmt(s.entryHigh)}</span></div>
+        <div class="stat-row"><span class="label">Stop Loss</span><span class="value down">$${fmt(s.sl)} (${s.stopPct}%)</span></div>
+        <div class="stat-row"><span class="label">Take Profit</span><span class="value up">$${fmt(s.tp)} (${s.tpPct}%)</span></div>
+        ${renderFibLevels(s)}`;
 
-      // ── Trend badge (สั้น)
-      const trendBadge = `<span class="badge ${closed ? "CLOSED" : (s.mode === "accumulate" ? (s.fibZone?.isDCAZone ? "ACCUMULATE" : "ACC-WAIT") : s.trend)}">${
-        closed ? "ปิด" : s.trend === "UP" ? "▲ ขาขึ้น" : "▼ ขาลง"
-      }</span>`;
+      const aiBox = s.aiComment ? `
+        <div class="ai-box">
+          <div class="ai-box-title">💬 คำแนะนำ AI</div>
+          ${esc(s.aiComment)}
+        </div>` : "";
 
-      // ── Weekly trend (ถ้ามี)
-      const weeklyBadge = s.weeklyTrend
-        ? `<span style="font-size:0.68rem;color:${s.weeklyTrend === "UP" ? "#4ade80" : "#f87171"}">W:${s.weeklyTrend}</span>`
-        : "";
-
-      // ── Overview section (always visible)
-      const overviewHtml = `
-        <div class="card-overview" onclick="toggleDetail('${uid}', this)">
-          <div class="card-overview-left">
-            <div class="card-header ${headerCls}" style="margin-bottom:8px">
-              <div class="name">${escHtml(s.displayName || s.symbol)} · Daily${closed && s.lastTradeDate ? ` <span style="font-size:0.62rem;opacity:0.7">ณ ${escHtml(s.lastTradeDate)}</span>` : ""}</div>
-              ${s.tradeNote ? `<div class="trade-note">${escHtml(s.tradeNote)}</div>` : ""}
-              <div class="rec">${recLabel}</div>
-            </div>
-            <div class="card-overview-price">$${fmt(s.price)}</div>
-            <div class="card-overview-meta">
-              ${trendBadge}${weeklyBadge}${rsiChip}${stars}
-            </div>
+      return `
+        <div class="card">
+          <div class="card-strip ${stripClass(s)}">
+            <div class="strip-name">${esc(s.displayName || s.symbol)} · Daily</div>
+            ${s.tradeNote ? `<div class="strip-trade">${esc(s.tradeNote)}</div>` : ""}
+            <div class="strip-rec">${rec}</div>
+            ${s.signalScore ? `<div class="strip-score" title="${esc(s.signalScore.label)}">${esc(s.signalScore.emoji)}</div>` : ""}
           </div>
-          <button class="toggle-btn" id="btn-${uid}">▼ รายละเอียด</button>
-        </div>`;
-
-      // ── Detail section (expandable)
-      const detailHtml = `
-        <div class="card-detail${alwaysExpanded ? " expanded" : ""}" id="${uid}">
-          <div class="detail-inner">
-            ${closed ? `<div class="market-closed-note">⏰ ตลาดเปิด: ${escHtml(s.nextOpenICT || "—")}</div>` : ""}
+          <div class="card-body">
+            ${closed ? `<div class="market-closed-note">⏰ เปิดรอบถัดไป: ${esc(s.nextOpenICT || "—")}</div>` : ""}
+            <div class="price-row">
+              <div class="price-big">$${fmt(s.price)}</div>
+              ${s.rsi ? `<div class="price-sub">RSI ${s.rsi.value}</div>` : ""}
+            </div>
+            <div class="chips">${trendChip}${weeklyChip}${rsiChip}${macdChip}</div>
             ${renderFibMeter(s)}
-            <div class="grid2">
-              <div class="stat"><label>EMA 8</label><div class="val">$${fmt(s.ema8)}</div></div>
-              <div class="stat"><label>EMA 21</label><div class="val">$${fmt(s.ema21)}</div></div>
+          </div>
+          <div class="detail-toggle${expanded ? " open" : ""}" onclick="toggleDet('${id}',this)">
+            <span>รายละเอียด</span>
+            <span class="arrow">▼</span>
+          </div>
+          <div class="card-detail${expanded ? " expanded" : ""}" id="${id}">
+            <div class="card-detail-inner">
+              <div class="stat-row">
+                <span class="label">EMA 8</span>
+                <span class="value">$${fmt(s.ema8)}</span>
+              </div>
+              <div class="stat-row">
+                <span class="label">EMA 21</span>
+                <span class="value">$${fmt(s.ema21)}</span>
+              </div>
+              ${fibContent}
+              <div class="sep"></div>
+              <div style="font-size:0.7rem;color:var(--text-muted);line-height:1.5">🔧 ${esc(s.note)}</div>
+              ${aiBox}
             </div>
-            <hr class="sep"/>
-            ${s.mode === "accumulate" && s.fibLevels ? `
-            <div style="font-size:0.7rem;color:#d97706;font-weight:700;margin-bottom:6px">📐 โซนสะสม Fibonacci</div>
-            <div style="font-size:0.68rem;color:#8b949e;margin-bottom:8px">Swing: $${fmt(s.swingLow)} → $${fmt(s.swingHigh)}</div>
-            <div class="grid2">
-              <div class="stat"><label>Fib 50%</label><div class="val" style="${s.nearFib==='50%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f500)}</div></div>
-              <div class="stat"><label>Fib 61.8%</label><div class="val" style="${s.nearFib==='61.8%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f618)}</div></div>
-              <div class="stat"><label>Fib 65%</label><div class="val" style="${s.nearFib==='65%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f650)}</div></div>
-              <div class="stat"><label>Fib 78.6%</label><div class="val" style="${s.nearFib==='78.6%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f786)}</div></div>
-            </div>` : `
-            <div class="grid2">
-              <div class="stat"><label>Entry Low</label><div class="val">$${fmt(s.entryLow)}</div></div>
-              <div class="stat"><label>Entry High</label><div class="val">$${fmt(s.entryHigh)}</div></div>
-              <div class="stat"><label>Stop Loss</label><div class="val">$${fmt(s.sl)} <small>(${s.stopPct}%)</small></div></div>
-              <div class="stat"><label>Take Profit</label><div class="val">$${fmt(s.tp)} <small>(${s.tpPct}%)</small></div></div>
-            </div>
-            ${s.fibLevels ? `
-            <hr class="sep"/>
-            <div style="font-size:0.7rem;color:#d97706;font-weight:700;margin-bottom:6px">📐 โซน DCA Fibonacci</div>
-            <div style="font-size:0.68rem;color:#8b949e;margin-bottom:8px">Swing: $${fmt(s.swingLow)} → $${fmt(s.swingHigh)}</div>
-            <div class="grid2">
-              <div class="stat"><label>Fib 50%</label><div class="val" style="${s.nearFib==='50%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f500)}</div></div>
-              <div class="stat"><label>Fib 61.8%</label><div class="val" style="${s.nearFib==='61.8%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f618)}</div></div>
-              <div class="stat"><label>Fib 65%</label><div class="val" style="${s.nearFib==='65%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f650)}</div></div>
-              <div class="stat"><label>Fib 78.6%</label><div class="val" style="${s.nearFib==='78.6%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f786)}</div></div>
-            </div>` : ""}
-            `}
-            <p class="note" style="margin-top:10px">🔧 ${escHtml(s.note)}</p>
-            ${s.aiComment ? `
-            <div class="ai-comment">
-              <div class="ai-comment-title">💬 คำแนะนำ AI</div>
-              ${escHtml(s.aiComment)}
-            </div>` : ""}
           </div>
         </div>`;
-
-      return overviewHtml + detailHtml;
     }
 
-    function toggleDetail(uid, clickedEl) {
-      const detail = document.getElementById(uid);
-      const btn = document.getElementById("btn-" + uid);
-      if (!detail) return;
-      const isExpanded = detail.classList.toggle("expanded");
-      if (btn) btn.textContent = isExpanded ? "▲ ซ่อน" : "▼ รายละเอียด";
+    function toggleDet(id, btn) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.toggle("expanded");
+      btn.classList.toggle("open");
     }
 
+    // ── Macro signal panel ─────────────────────────────────────
+    function renderMacroSignal(dxy, oil) {
+      if (!dxy || !oil) return '<div class="loading-text">ข้อมูลไม่ครบ</div>';
+      const dxyUp = dxy.trend === "UP", oilUp = oil.trend === "UP";
+      const sigs = [];
+      sigs.push({ i: dxyUp ? "⚠️" : "✅", t: dxyUp
+        ? "<strong>ดอลลาร์แข็ง (DXY ↑)</strong> — กดดัน Crypto และทองคำ"
+        : "<strong>ดอลลาร์อ่อน (DXY ↓)</strong> — เอื้อต่อ Crypto, ทอง และ EM" });
+      sigs.push({ i: oilUp ? "⚠️" : "✅", t: oilUp
+        ? "<strong>น้ำมันแพงขึ้น</strong> — เพิ่มแรงกดดันเงินเฟ้อ"
+        : "<strong>น้ำมันถูกลง</strong> — ลดแรงกดดันเงินเฟ้อ" });
+      let out, oi;
+      if (!dxyUp && !oilUp)     { oi = "🟢"; out = "สภาพแวดล้อมเอื้อต่อการลงทุน — เหมาะสะสม BTC / หุ้น / ทอง"; }
+      else if (!dxyUp && oilUp) { oi = "🟡"; out = "ระวังเงินเฟ้อ — ดอลลาร์อ่อนดีต่อ Crypto แต่น้ำมันแพงกดดัน Fed"; }
+      else if (dxyUp && !oilUp) { oi = "🟡"; out = "Risk-off — ดอลลาร์แข็งกดดัน Crypto/ทอง แต่น้ำมันถูกช่วยลดเงินเฟ้อ"; }
+      else                       { oi = "🔴"; out = "Stagflation risk — ดอลลาร์แข็ง + น้ำมันแพง ระวังความเสี่ยงสูง"; }
+      sigs.push({ i: oi, t: `<strong>ภาพรวม:</strong> ${out}` });
+      return `
+        <div class="macro-cell-title">บทวิเคราะห์</div>
+        ${sigs.map(s => `<div class="signal-row"><span class="signal-icon">${s.i}</span><span class="signal-text">${s.t}</span></div>`).join("")}`;
+    }
+
+    function renderMacroCard(s) {
+      const up = s.trend === "UP";
+      const arrow = up ? "▲" : "▼";
+      const cls = up ? "down" : "up"; // น้ำมัน/DXY ขึ้น = แย่ = red; ลง = ดี = green
+      return `
+        <div class="macro-cell-title">${esc(s.displayName || s.symbol)}</div>
+        <div style="font-size:1.3rem;font-weight:700;margin-bottom:6px">$${fmt(s.price)}</div>
+        <span class="chip chip-${up ? "down" : "up"}">${arrow} ${s.trend === "UP" ? "ขาขึ้น" : "ขาลง"}</span>
+        ${s.rsi ? `<div style="margin-top:8px;font-size:0.75rem;color:var(--text-muted)">RSI ${s.rsi.value} · ${esc(s.rsi.label)}</div>` : ""}
+        <div style="margin-top:4px;font-size:0.7rem;color:var(--text-muted)">EMA8 ${fmt(s.ema8)} / EMA21 ${fmt(s.ema21)}</div>`;
+    }
+
+    // ── Fetch ──────────────────────────────────────────────────
     async function fetchSetup(symbol) {
       const res = await fetch(`${BACKEND_URL}/api/btc?symbol=${encodeURIComponent(symbol)}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -377,76 +527,59 @@
       return data;
     }
 
+    // ── Load main ──────────────────────────────────────────────
     async function loadAll() {
       const targets = [
-        { symbol: "BTCUSDT", id: "card-BTCUSDT" },
-        { symbol: "PAXGUSDT", id: "card-PAXGUSDT" },
-        { symbol: "VOO", id: "card-VOO" },
+        { symbol: "BTCUSDT" },
+        { symbol: "PAXGUSDT" },
+        { symbol: "VOO" },
       ];
-      document.getElementById("lastUpdate").textContent = "กำลังโหลด...";
-      targets.forEach(({ id }) => {
-        document.getElementById(id).innerHTML = '<p class="loading">⏳ กำลังดึงข้อมูล...</p>';
-      });
+      const grid = document.getElementById("main-grid");
+      grid.innerHTML = targets.map(() => `<div class="card"><div class="loading-text">⏳ กำลังโหลด...</div></div>`).join("");
+      document.getElementById("lastUpdate").textContent = "";
 
-      const results = await Promise.allSettled(targets.map(({ symbol }) => fetchSetup(symbol)));
-
-      let latestTime = null;
-      results.forEach((result, i) => {
-        const el = document.getElementById(targets[i].id);
-        if (result.status === "fulfilled") {
-          const { setup, generatedAt } = result.value;
-          el.innerHTML = renderCard(setup);
-          if (!latestTime) latestTime = generatedAt;
-        } else {
-          el.innerHTML = `<p class="error-msg">❌ ${result.reason.message}</p>`;
+      const results = await Promise.allSettled(targets.map(t => fetchSetup(t.symbol)));
+      let t = null;
+      const cards = results.map((r, i) => {
+        if (r.status === "fulfilled") {
+          if (!t) t = r.value.generatedAt;
+          return renderCard(r.value.setup);
         }
+        return `<div class="card"><div class="error-text">❌ ${esc(r.reason.message)}</div></div>`;
       });
-
-      document.getElementById("lastUpdate").textContent = latestTime
-        ? `อัปเดตเมื่อ: ${new Date(latestTime).toLocaleString("th-TH")}`
-        : "โหลดบางรายการไม่สำเร็จ";
+      grid.innerHTML = cards.join("");
+      if (t) document.getElementById("lastUpdate").textContent =
+        new Date(t).toLocaleString("th-TH", { hour: "2-digit", minute: "2-digit" });
 
       loadMacro();
     }
 
+    // ── Load macro ─────────────────────────────────────────────
     async function loadMacro() {
-      const macroTargets = [
-        { symbol: "CL=F",      id: "card-CL=F" },
-        { symbol: "DX-Y.NYB",  id: "card-DXY" },
-      ];
-      macroTargets.forEach(({ id }) => {
-        document.getElementById(id).innerHTML = '<p class="loading">⏳ กำลังดึงข้อมูล...</p>';
-      });
-      document.getElementById("macro-signal-box").innerHTML = '<p class="loading">⏳ กำลังวิเคราะห์...</p>';
+      const [r1, r2] = await Promise.allSettled([fetchSetup("CL=F"), fetchSetup("DX-Y.NYB")]);
+      const oil = r1.status === "fulfilled" ? r1.value.setup : null;
+      const dxy = r2.status === "fulfilled" ? r2.value.setup : null;
 
-      const results = await Promise.allSettled(macroTargets.map(({ symbol }) => fetchSetup(symbol)));
-      let dxySetup = null, oilSetup = null;
+      const c1 = oil ? renderMacroCard(oil) : `<div class="error-text">❌ โหลดไม่ได้</div>`;
+      const c2 = dxy ? renderMacroCard(dxy) : `<div class="error-text">❌ โหลดไม่ได้</div>`;
+      const c3 = renderMacroSignal(dxy, oil);
 
-      results.forEach((result, i) => {
-        const el = document.getElementById(macroTargets[i].id);
-        if (result.status === "fulfilled") {
-          const { setup } = result.value;
-          el.innerHTML = renderCard(setup);
-          if (macroTargets[i].symbol === "DX-Y.NYB") dxySetup = setup;
-          if (macroTargets[i].symbol === "CL=F")     oilSetup = setup;
-        } else {
-          el.innerHTML = `<p class="error-msg">❌ ${result.reason.message}</p>`;
-        }
-      });
-
-      document.getElementById("macro-signal-box").innerHTML = renderMacroSignal(dxySetup, oilSetup);
+      document.getElementById("macro-grid").innerHTML = `
+        <div class="macro-cell">${c1}</div>
+        <div class="macro-cell">${c2}</div>
+        <div class="macro-cell">${c3}</div>`;
     }
 
+    // ── Load other ─────────────────────────────────────────────
     async function loadOther() {
       const symbol = document.getElementById("symbolSelect").value;
-      const el = document.getElementById("other-card");
-      el.style.display = "block";
-      el.innerHTML = '<p class="loading">⏳ กำลังดึงข้อมูล...</p>';
+      const box = document.getElementById("search-result");
+      box.innerHTML = `<div class="card" style="max-width:440px"><div class="loading-text">⏳ กำลังดึงข้อมูล...</div></div>`;
       try {
         const { setup } = await fetchSetup(symbol);
-        el.innerHTML = renderCard(setup, true);
+        box.innerHTML = renderCard(setup, true);
       } catch (err) {
-        el.innerHTML = `<p class="error-msg">❌ ${err.message}</p>`;
+        box.innerHTML = `<div class="card" style="max-width:440px"><div class="error-text">❌ ${esc(err.message)}</div></div>`;
       }
     }
 
