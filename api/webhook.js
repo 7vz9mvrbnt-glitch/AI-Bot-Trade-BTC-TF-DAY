@@ -14,6 +14,7 @@ const { analyze, buildAIComment } = require("../lib/analyze");
 const { replyMessage, buildSetupFlex, buildMacroFlex } = require("../lib/line");
 const { detectSymbol, SYMBOLS } = require("../lib/symbols");
 const { fetchCandles: fetchYahoo } = require("../lib/yahoo");
+const { buildNewsMessage } = require("../lib/news");
 
 function verifySignature(body, signature, secret) {
   const hash = crypto
@@ -51,6 +52,25 @@ module.exports = async function handler(req, res) {
       try {
         await replyMessage(event.replyToken, [buildHelpMessage()]);
       } catch (_) {}
+      continue;
+    }
+
+    // "ข่าว [symbol]" — ข่าวล่าสุดจาก Yahoo Finance RSS
+    if (lower.startsWith("ข่าว") || lower.startsWith("news")) {
+      const queryText = text.replace(/^(ข่าว|news)\s*/i, "").trim();
+      const newsEntry = queryText ? detectSymbol(queryText) : SYMBOLS.find((s) => s.symbol === "BTCUSDT");
+      const targetEntry = newsEntry || SYMBOLS.find((s) => s.symbol === "BTCUSDT");
+      try {
+        const msg = await buildNewsMessage(targetEntry.symbol, targetEntry.displayName);
+        if (msg) {
+          await replyMessage(event.replyToken, [msg]);
+        } else {
+          await replyMessage(event.replyToken, [{ type: "text", text: `📰 ไม่พบข่าวสำหรับ ${targetEntry.displayName || targetEntry.symbol} ในขณะนี้` }]);
+        }
+      } catch (err) {
+        console.error("[webhook] news error:", err.message);
+        try { await replyMessage(event.replyToken, [{ type: "text", text: `❌ ดึงข่าวไม่ได้: ${err.message}` }]); } catch (_) {}
+      }
       continue;
     }
 
@@ -443,6 +463,7 @@ function buildHelpMessage() {
             ["ภาพรวม / ตลาดวันนี้ / overview", "บทวิเคราะห์เชื่อมทุกสินทรัพย์"],
             ["ซื้ออะไรดี / ซื้อ / buy", "สแกนทุกตัว → แนะนำโซน DCA"],
             ["ขายตัวไหนดี / ขาย / sell", "สแกนทุกตัว → แจ้งตัวที่ราคาสูง"],
+            ["ข่าว [ชื่อหุ้น] / news [ชื่อหุ้น]", "ข่าวล่าสุดจาก Yahoo Finance"],
           ]),
           { type: "separator", margin: "md" },
           {

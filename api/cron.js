@@ -8,9 +8,10 @@
  * Push budget (LINE free 200/เดือน):
  *   - Daily main carousel  : 1/day × 30 = 30
  *   - Daily macro card     : 1/day × 30 = 30
+ *   - Daily news digest    : 0–1/day × 30 ≤ 30  (เฉพาะวันที่มีข่าวสำคัญ)
  *   - RSI alert (batch)    : 0–1/day × 30 ≤ 30  (เฉพาะวันที่ trigger)
  *   - Weekly summary (จ.)  : 1/week × 4  = 4
- *   worst-case total       : 94/month ✅
+ *   worst-case total       : 124/month ✅ (< 200 limit)
  */
 
 const { fetchCandles } = require("../lib/binance");
@@ -18,6 +19,7 @@ const { fetchCandles: fetchYahoo } = require("../lib/yahoo");
 const { analyze, buildAIComment } = require("../lib/analyze");
 const { pushMessage, buildSetupFlex, buildMacroFlex } = require("../lib/line");
 const { SYMBOLS } = require("../lib/symbols");
+const { buildDailyNewsDigest } = require("../lib/news");
 
 // RSI threshold สำหรับ alert
 const RSI_ALERT_THRESHOLD = 35;
@@ -110,7 +112,20 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    // ── 5) Weekly Summary — ส่งเฉพาะวันจันทร์ (UTC day=1) ──────────
+    // ── 5) Daily News Digest — ส่งถ้ามีข่าวสำคัญ ────────────────────
+    try {
+      const newsMsg = await buildDailyNewsDigest(SYMBOLS);
+      if (newsMsg) {
+        for (const to of targets) {
+          try { await pushMessage(to.trim(), [newsMsg]); }
+          catch (e) { console.error(`[cron] LINE push error (news):`, e.message); }
+        }
+      }
+    } catch (e) {
+      console.error("[cron] news digest error:", e.message);
+    }
+
+    // ── 6) Weekly Summary — ส่งเฉพาะวันจันทร์ (UTC day=1) ──────────
     const todayUTC = new Date().getUTCDay();
     if (todayUTC === 1) {
       // oilSetup/dxySetup อาจเป็น undefined ถ้า macro fetch fail — ส่ง null แทน
