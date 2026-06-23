@@ -54,8 +54,11 @@ module.exports = async function handler(req, res) {
       continue;
     }
 
-    // "ซื้ออะไรดี" — วิเคราะห์สินทรัพย์สะสม/DCA ทั้งหมด แนะนำตัวที่น่าซื้อ
-    if (lower.includes("ซื้ออะไรดี") || lower.includes("ซื้ออะไร") || lower.includes("ตัวไหนดี")) {
+    // ตรวจก่อนว่าข้อความระบุสินทรัพย์เฉพาะเจาะจงหรือเปล่า
+    const specificEntry = detectSymbol(text);
+
+    // "ซื้ออะไรดี" — วิเคราะห์สินทรัพย์ทั้งหมด (เฉพาะเมื่อไม่ได้ระบุ asset)
+    if (!specificEntry && (lower.includes("ซื้ออะไรดี") || lower.includes("ซื้ออะไร") || lower.includes("ตัวไหนดี") || lower.includes("ซื้อ"))) {
       try {
         const msgs = await buildBuyRecommendation();
         await replyMessage(event.replyToken, msgs);
@@ -66,8 +69,8 @@ module.exports = async function handler(req, res) {
       continue;
     }
 
-    // "ขายตัวไหนดี" — วิเคราะห์หาตัวที่ควรพิจารณาขาย/ลด position
-    if (lower.includes("ขายตัวไหน") || lower.includes("ขายอะไร") || lower.includes("ควรขาย")) {
+    // "ขายตัวไหนดี" — วิเคราะห์สินทรัพย์ทั้งหมด (เฉพาะเมื่อไม่ได้ระบุ asset)
+    if (!specificEntry && (lower.includes("ขายตัวไหน") || lower.includes("ขายอะไร") || lower.includes("ควรขาย") || lower.includes("ขาย"))) {
       try {
         const msgs = await buildSellRecommendation();
         await replyMessage(event.replyToken, msgs);
@@ -78,7 +81,7 @@ module.exports = async function handler(req, res) {
       continue;
     }
 
-    const entry = detectSymbol(text);
+    const entry = specificEntry;
     if (!entry) continue;
 
     try {
