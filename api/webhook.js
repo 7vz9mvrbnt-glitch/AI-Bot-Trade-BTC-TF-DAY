@@ -57,6 +57,19 @@ module.exports = async function handler(req, res) {
     // ตรวจก่อนว่าข้อความระบุสินทรัพย์เฉพาะเจาะจงหรือเปล่า
     const specificEntry = detectSymbol(text);
 
+    // "พอร์ต" — portfolio tracker
+    // รูปแบบ: "พอร์ต BTC 0.5 @ 60000, AAPL 10 @ 180"
+    if (lower.startsWith("พอร์ต") || lower.startsWith("port") || lower.startsWith("portfolio")) {
+      try {
+        const msgs = await buildPortfolioReport(text);
+        await replyMessage(event.replyToken, msgs);
+      } catch (err) {
+        console.error("[webhook] portfolio error:", err.message);
+        try { await replyMessage(event.replyToken, [{ type: "text", text: `❌ ${err.message}` }]); } catch (_) {}
+      }
+      continue;
+    }
+
     // "ภาพรวมตลาด" — บทวิเคราะห์เชื่อมทุกสินทรัพย์
     if (!specificEntry && (
       lower.includes("ภาพรวม") || lower.includes("วิเคราะห์ตลาด") ||
@@ -108,7 +121,7 @@ module.exports = async function handler(req, res) {
 
     try {
       const fetcher = entry.source === "yahoo" ? fetchYahoo : fetchCandles;
-      const candles = await fetcher(entry.symbol, 50);
+      const candles = await fetcher(entry.symbol, 160);
       const setup = analyze(candles, entry.symbol, entry.source, entry.mode);
       setup.displayName = entry.displayName;
       setup.tradeNote = entry.tradeNote;
@@ -128,6 +141,82 @@ module.exports = async function handler(req, res) {
 
   return res.status(200).json({ ok: true });
 };
+
+/**
+ * Portfolio Tracker
+ * รูปแบบ: "พอร์ต BTC 0.5@60000, AAPL 10@180.5"
+ *   หรือ:  "พอร์ต BTC 0.5 @ 60000"
+ * ตอบด้วย reply (ฟรี)
+ */
+async function buildPortfolioReport(text) {
+  // ตัด prefix ออก
+  const body = text.replace(/^(พอร์ต|port|portfolio)\s*/i, "").trim();
+
+  if (!body) {
+    return [{
+      type: "text",
+      text: "📋 วิธีใช้ Portfolio Tracker:\n\nพิมพ์: พอร์ต [ชื่อ] [จำนวน]@[ราคาซื้อ]\n\nตัวอย่าง:\nพอร์ต BTC 0.5@60000, AAPL 10@180\n\nแต่ละตัวคั่นด้วย , (comma)",
+    }];
+  }
+
+  // parse entries: "BTC 0.5@60000" หรือ "BTC 0.5 @ 60000"
+  const items = body.split(/,/).map((s) => s.trim()).filter(Boolean);
+  const parsed = [];
+  for (const item of items) {
+    // รองรับ "BTC 0.5@60000" หรือ "BTC 0.5 @ 60000"
+    const m = item.match(/^([A-Za-zก-๙/.\-]+)\s+([\d.]+)\s*@\s*([\d.]+)$/);
+    if (!m) continue;
+    const [, rawSymbol, qtyStr, costStr] = m;
+    const entry = SYMBOLS.find(({ keywords, symbol }) =>
+      keywords.some((k) => rawSymbol.toLowerCase().includes(k)) ||
+      symbol.toLowerCase() === rawSymbol.toLowerCase()
+    );
+    if (!entry) continue;
+    parsed.push({ entry, qty: parseFloat(qtyStr), costPrice: parseFloat(costStr) });
+  }
+
+  if (parsed.length === 0) {
+    return [{ type: "text", text: "❌ ไม่พบสินทรัพย์ที่ระบุ\nตัวอย่าง: พอร์ต BTC 0.5@60000, AAPL 10@180" }];
+  }
+
+  // ดึงราคาปัจจุบันทุกตัวพร้อมกัน
+  const setups = await Promise.all(parsed.map(({ entry }) => fetchSetup(entry)));
+  const fmt  = (n) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtPct = (n) => (n >= 0 ? "+" : "") + n.toFixed(2) + "%";
+
+  let totalCost = 0, totalValue = 0;
+  const lines = ["📊 สรุปพอร์ตของคุณ\n"];
+
+  for (let i = 0; i < parsed.length; i++) {
+    const { entry, qty, costPrice } = parsed[i];
+    const setup = setups[i];
+    const currentPrice = setup.price;
+    const cost  = qty * costPrice;
+    const value = qty * currentPrice;
+    const pnl   = value - cost;
+    const pnlPct = ((currentPrice - costPrice) / costPrice) * 100;
+    totalCost  += cost;
+    totalValue += value;
+
+    const icon = pnl >= 0 ? "🟢" : "🔴";
+    lines.push(`${icon} ${entry.displayName || entry.symbol}`);
+    lines.push(`  ซื้อที่ $${fmt(costPrice)} × ${qty} = $${fmt(cost)}`);
+    lines.push(`  ราคาตอนนี้ $${fmt(currentPrice)} → $${fmt(value)}`);
+    lines.push(`  กำไร/ขาดทุน: ${pnl >= 0 ? "+" : ""}$${fmt(pnl)} (${fmtPct(pnlPct)})`);
+    if (setup.rsi) lines.push(`  สัญญาณ: ${setup.rsi.emoji} ${setup.rsi.label} ${setup.signalScore?.emoji || ""}`);
+    lines.push("");
+  }
+
+  const totalPnl    = totalValue - totalCost;
+  const totalPnlPct = ((totalValue - totalCost) / totalCost) * 100;
+  lines.push(`${"─".repeat(28)}`);
+  lines.push(`💼 พอร์ตรวม`);
+  lines.push(`  ต้นทุน: $${fmt(totalCost)}`);
+  lines.push(`  มูลค่าตอนนี้: $${fmt(totalValue)}`);
+  lines.push(`  กำไร/ขาดทุน: ${totalPnl >= 0 ? "+" : ""}$${fmt(totalPnl)} (${fmtPct(totalPnlPct)})`);
+
+  return [{ type: "text", text: lines.join("\n") }];
+}
 
 /**
  * บทวิเคราะห์ภาพรวมตลาดเชื่อมทุกสินทรัพย์
@@ -241,7 +330,7 @@ async function buildMarketOverview() {
 /** ดึง setup ของ entry หนึ่งตัว */
 async function fetchSetup(entry) {
   const fetcher = entry.source === "yahoo" ? fetchYahoo : fetchCandles;
-  const candles = await fetcher(entry.symbol, 50);
+  const candles = await fetcher(entry.symbol, 160);
   const setup = analyze(candles, entry.symbol, entry.source, entry.mode);
   setup.displayName = entry.displayName;
   setup.tradeNote   = entry.tradeNote;
@@ -443,7 +532,7 @@ function buildHelpMessage() {
             ["ภาพรวม / ตลาดวันนี้ / overview", "บทวิเคราะห์เชื่อมทุกสินทรัพย์"],
             ["ซื้ออะไรดี / ซื้อ / buy", "สแกนทุกตัว → แนะนำโซน DCA"],
             ["ขายตัวไหนดี / ขาย / sell", "สแกนทุกตัว → แจ้งตัวที่ราคาสูง"],
-            ["น้ำมัน / DXY / ดอลลาร์", "ดูภาวะตลาดมหภาค"],
+            ["พอร์ต BTC 0.5@60000, AAPL 10@180", "คำนวณกำไร/ขาดทุนพอร์ต"],
           ]),
           { type: "separator", margin: "md" },
           {

@@ -28,7 +28,7 @@ module.exports = async function handler(req, res) {
     const symbol = req.query?.symbol || "BTCUSDT";
     const entry = SYMBOLS.find((s) => s.symbol === symbol);
     const fetcher = entry?.source === "yahoo" ? fetchYahoo : fetchCandles;
-    const candles = await fetcher(symbol, 50);
+    const candles = await fetcher(symbol, 160);
     const setup = analyze(candles, symbol, entry?.source, entry?.mode);
     setup.displayName = entry?.displayName || symbol;
     setup.tradeNote = entry?.tradeNote || "";
