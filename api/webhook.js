@@ -452,6 +452,7 @@ function buildHelpMessage() {
             ["AMZN / Amazon", "Swing & Position"],
             ["META / Facebook", "Swing · ข่าวแรง"],
             ["TSLA / Tesla", "Day & Swing · ผันผวนสูงมาก"],
+            ["MU / Micron", "Swing & Position · Semiconductor/Memory"],
           ]),
           { type: "separator", margin: "md" },
           section("📦 ETF (Yahoo)", [
