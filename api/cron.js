@@ -12,7 +12,7 @@ const { fetchCandles } = require("../lib/binance");
 const { fetchCandles: fetchYahoo } = require("../lib/yahoo");
 const { analyze, toSheetRow, buildAIComment } = require("../lib/analyze");
 const { appendRow } = require("../lib/sheets");
-const { pushMessage, buildSetupFlex } = require("../lib/line");
+const { pushMessage, buildSetupFlex, buildMacroFlex } = require("../lib/line");
 const { SYMBOLS } = require("../lib/symbols");
 
 module.exports = async function handler(req, res) {
@@ -29,9 +29,12 @@ module.exports = async function handler(req, res) {
 
     // ส่ง LINE push เฉพาะ 3 สินทรัพย์หลัก (BTC, ทอง, S&P500)
     const PUSH_SYMBOLS = ["BTCUSDT", "PAXGUSDT", "VOO"];
+    // ตัวชี้วัดมหภาค ส่งรวมด้วย
+    const MACRO_SYMBOLS = ["CL=F", "DX-Y.NYB"];
     const pushTargets = SYMBOLS.filter((s) => PUSH_SYMBOLS.includes(s.symbol));
 
     // 1) ดึงข้อมูลและบันทึก Sheet ทุก symbol แต่ส่ง LINE เฉพาะ pushTargets
+    const macroSetups = {};  // เก็บ setup ของ macro indicators
     for (const entry of SYMBOLS) {
       const { symbol, source, displayName } = entry;
       const result = { symbol, sheet: null, line: "pending" };
@@ -52,10 +55,15 @@ module.exports = async function handler(req, res) {
           console.error(`[cron] sheet error (${symbol}):`, e.message);
         }
 
-        // เก็บเฉพาะ 3 ตัวหลักไว้รวม carousel
+        // เก็บ 3 ตัวหลักไว้รวม carousel
         if (PUSH_SYMBOLS.includes(symbol)) {
           const flex = buildSetupFlex(setup);
           flexBubbles.push(flex.contents);
+        }
+
+        // เก็บ macro setups ไว้สร้าง macro card
+        if (MACRO_SYMBOLS.includes(symbol)) {
+          macroSetups[symbol] = setup;
         }
       } catch (e) {
         result.sheet = `fatal: ${e.message}`;
@@ -64,7 +72,7 @@ module.exports = async function handler(req, res) {
       allResults.push(result);
     }
 
-    // 2) ส่ง LINE push ครั้งเดียว — 3 bubble รวมเป็น carousel
+    // 2) ส่ง LINE push ครั้งที่ 1 — 3 bubble รวมเป็น carousel (BTC / ทอง / S&P500)
     if (flexBubbles.length > 0) {
       const carousel = {
         type: "flex",
@@ -77,9 +85,23 @@ module.exports = async function handler(req, res) {
           allResults.filter((r) => PUSH_SYMBOLS.includes(r.symbol))
             .forEach((r) => { r.line = "ok"; });
         } catch (e) {
-          console.error(`[cron] LINE push error:`, e.message);
+          console.error(`[cron] LINE push error (main):`, e.message);
           allResults.filter((r) => PUSH_SYMBOLS.includes(r.symbol))
             .forEach((r) => { r.line = `error: ${e.message}`; });
+        }
+      }
+    }
+
+    // 3) ส่ง LINE push ครั้งที่ 2 — Macro card (Oil + DXY)
+    const oilSetup = macroSetups["CL=F"];
+    const dxySetup = macroSetups["DX-Y.NYB"];
+    if (oilSetup && dxySetup) {
+      const macroMsg = buildMacroFlex(oilSetup, dxySetup);
+      for (const to of targets) {
+        try {
+          await pushMessage(to.trim(), [macroMsg]);
+        } catch (e) {
+          console.error(`[cron] LINE push error (macro):`, e.message);
         }
       }
     }
