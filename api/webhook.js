@@ -57,8 +57,27 @@ module.exports = async function handler(req, res) {
     // ตรวจก่อนว่าข้อความระบุสินทรัพย์เฉพาะเจาะจงหรือเปล่า
     const specificEntry = detectSymbol(text);
 
+    // "ภาพรวมตลาด" — บทวิเคราะห์เชื่อมทุกสินทรัพย์
+    if (!specificEntry && (
+      lower.includes("ภาพรวม") || lower.includes("วิเคราะห์ตลาด") ||
+      lower.includes("overview") || lower.includes("market") ||
+      lower.includes("ตลาดวันนี้") || lower.includes("สรุปตลาด")
+    )) {
+      try {
+        const msgs = await buildMarketOverview();
+        await replyMessage(event.replyToken, msgs);
+      } catch (err) {
+        console.error("[webhook] overview error:", err.message);
+        try { await replyMessage(event.replyToken, [{ type: "text", text: `❌ ดึงข้อมูลไม่ได้: ${err.message}` }]); } catch (_) {}
+      }
+      continue;
+    }
+
     // "ซื้ออะไรดี" — วิเคราะห์สินทรัพย์ทั้งหมด (เฉพาะเมื่อไม่ได้ระบุ asset)
-    if (!specificEntry && (lower.includes("ซื้ออะไรดี") || lower.includes("ซื้ออะไร") || lower.includes("ตัวไหนดี") || lower.includes("ซื้อ"))) {
+    if (!specificEntry && (
+      lower.includes("ซื้ออะไรดี") || lower.includes("ซื้ออะไร") ||
+      lower.includes("ตัวไหนดี") || lower.includes("ซื้อ") || lower === "buy"
+    )) {
       try {
         const msgs = await buildBuyRecommendation();
         await replyMessage(event.replyToken, msgs);
@@ -70,7 +89,10 @@ module.exports = async function handler(req, res) {
     }
 
     // "ขายตัวไหนดี" — วิเคราะห์สินทรัพย์ทั้งหมด (เฉพาะเมื่อไม่ได้ระบุ asset)
-    if (!specificEntry && (lower.includes("ขายตัวไหน") || lower.includes("ขายอะไร") || lower.includes("ควรขาย") || lower.includes("ขาย"))) {
+    if (!specificEntry && (
+      lower.includes("ขายตัวไหน") || lower.includes("ขายอะไร") ||
+      lower.includes("ควรขาย") || lower.includes("ขาย") || lower === "sell"
+    )) {
       try {
         const msgs = await buildSellRecommendation();
         await replyMessage(event.replyToken, msgs);
@@ -106,6 +128,115 @@ module.exports = async function handler(req, res) {
 
   return res.status(200).json({ ok: true });
 };
+
+/**
+ * บทวิเคราะห์ภาพรวมตลาดเชื่อมทุกสินทรัพย์
+ * ลำดับ: Macro (DXY/Oil) → Crypto → หุ้น/ETF → ทอง → สรุป
+ */
+async function buildMarketOverview() {
+  // ดึงข้อมูลทุกตัวพร้อมกัน
+  const allEntries = SYMBOLS;
+  const results = await Promise.allSettled(allEntries.map(fetchSetup));
+
+  const bySymbol = {};
+  allEntries.forEach((e, i) => {
+    if (results[i].status === "fulfilled") bySymbol[e.symbol] = results[i].value;
+  });
+
+  const dxy  = bySymbol["DX-Y.NYB"];
+  const oil  = bySymbol["CL=F"];
+  const btc  = bySymbol["BTCUSDT"];
+  const gold = bySymbol["PAXGUSDT"];
+  const voo  = bySymbol["VOO"];
+  const qqq  = bySymbol["QQQ"];
+
+  const cryptos = ["BTCUSDT","ETHUSDT","BNBUSDT","XRPUSDT","SOLUSDT"]
+    .map((s) => bySymbol[s]).filter(Boolean);
+  const mag7   = ["AAPL","MSFT","NVDA","GOOGL","AMZN","META","TSLA"]
+    .map((s) => bySymbol[s]).filter(Boolean);
+
+  const dxyUp = dxy?.trend === "UP";
+  const oilUp = oil?.trend === "UP";
+  const fmt   = (n) => n ? n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-";
+
+  // ── 1) Macro environment
+  let macroScore = 0; // -2 (ยาก) ถึง +2 (ดี)
+  if (!dxyUp) macroScore++;
+  if (!oilUp) macroScore++;
+  const macroLabel = macroScore >= 2 ? "✅ ดี" : macroScore === 1 ? "⚠️ ปานกลาง" : "🔴 ยาก";
+
+  // ── 2) Crypto score
+  const cryptoUp = cryptos.filter((s) => s.trend === "UP").length;
+  const cryptoLabel = cryptoUp >= 4 ? "✅ ส่วนใหญ่ขาขึ้น" : cryptoUp >= 2 ? "⚠️ ปนกัน" : "🔴 ส่วนใหญ่ขาลง";
+
+  // ── 3) หุ้น score
+  const stocksAll = [...mag7, voo, qqq].filter(Boolean);
+  const stocksUp  = stocksAll.filter((s) => s.trend === "UP").length;
+  const stockLabel = stocksUp >= Math.ceil(stocksAll.length * 0.7) ? "✅ ส่วนใหญ่ขาขึ้น"
+    : stocksUp >= Math.ceil(stocksAll.length * 0.4) ? "⚠️ ปนกัน" : "🔴 ส่วนใหญ่ขาลง";
+
+  // ── 4) DCA opportunity
+  const allTradeable = [...cryptos, ...mag7, voo, qqq, gold].filter(Boolean);
+  const dcaReady  = allTradeable.filter((s) => s.fibZone?.isDCAZone);
+  const dcaNames  = dcaReady.map((s) => s.displayName || s.symbol).join(", ") || "ยังไม่มี";
+
+  // ── Build messages
+  const lines = [];
+
+  // Header
+  lines.push(`🌐 ภาพรวมตลาดวันนี้`);
+  lines.push(`${"─".repeat(28)}`);
+
+  // Macro
+  lines.push(`\n📡 ปัจจัยมหภาค (Macro): ${macroLabel}`);
+  if (dxy) lines.push(`  💵 DXY ดอลลาร์: ${dxy.trend === "UP" ? "▲ แข็งค่า" : "▼ อ่อนค่า"} (${fmt(dxy.price)})`);
+  if (oil) lines.push(`  🛢 น้ำมัน WTI: ${oil.trend === "UP" ? "▲ แพงขึ้น" : "▼ ถูกลง"} ($${fmt(oil.price)})`);
+
+  // Macro interpretation
+  if (!dxyUp && !oilUp)      lines.push(`  → สภาพแวดล้อมเอื้อการลงทุน ดอลลาร์อ่อน + น้ำมันถูก`);
+  else if (!dxyUp && oilUp)  lines.push(`  → ระวังเงินเฟ้อ น้ำมันแพงกดดันกำลังซื้อ`);
+  else if (dxyUp && !oilUp)  lines.push(`  → ดอลลาร์แข็ง กดดัน Crypto/ทอง/EM`);
+  else                        lines.push(`  → Stagflation risk — ดอลลาร์แข็ง + น้ำมันแพง ระวังตลาดผันผวน`);
+
+  // Crypto
+  lines.push(`\n🪙 Crypto (${cryptoUp}/${cryptos.length} ตัวขาขึ้น): ${cryptoLabel}`);
+  cryptos.forEach((s) => {
+    const arrow = s.trend === "UP" ? "▲" : "▼";
+    const zone  = s.fibZone ? ` | ${s.fibZone.emoji} ${s.fibZone.label}` : "";
+    lines.push(`  ${arrow} ${s.displayName || s.symbol} $${fmt(s.price)}${zone}`);
+  });
+
+  // หุ้น
+  lines.push(`\n📈 หุ้น US + ETF (${stocksUp}/${stocksAll.length} ตัวขาขึ้น): ${stockLabel}`);
+  stocksAll.forEach((s) => {
+    const arrow = s.trend === "UP" ? "▲" : "▼";
+    const zone  = s.fibZone ? ` | ${s.fibZone.emoji} ${s.fibZone.label}` : "";
+    lines.push(`  ${arrow} ${s.displayName || s.symbol} $${fmt(s.price)}${zone}`);
+  });
+
+  // สรุปโอกาส DCA
+  lines.push(`\n${"─".repeat(28)}`);
+  lines.push(`🎯 โซน DCA น่าสะสมตอนนี้:`);
+  if (dcaReady.length > 0) {
+    dcaReady.forEach((s) => {
+      lines.push(`  🟢 ${s.displayName || s.symbol} — ${s.fibZone.label} ($${fmt(s.price)})`);
+    });
+    lines.push(`💡 แบ่งซื้อ 2–3 ครั้ง อย่าใส่เงินทั้งหมดครั้งเดียว`);
+  } else {
+    lines.push(`  ยังไม่มีตัวที่ลงมาถึงโซน DCA ที่ดี — รอราคาปรับตัวก่อน`);
+  }
+
+  // Overall verdict
+  const overallScore = macroScore + (cryptoUp >= 3 ? 1 : 0) + (stocksUp >= stocksAll.length * 0.5 ? 1 : 0);
+  let verdict;
+  if (overallScore >= 4)      verdict = "✅ ตลาดเอื้อ — เหมาะเปิด position / สะสม";
+  else if (overallScore >= 2) verdict = "⚠️ ตลาดปานกลาง — เลือกสะสมเฉพาะตัวที่แข็งแกร่ง";
+  else                        verdict = "🔴 ตลาดยาก — ถือเงินสดรอก่อน หรือ DCA น้อยมาก";
+
+  lines.push(`\n📌 สรุป: ${verdict}`);
+
+  return [{ type: "text", text: lines.join("\n") }];
+}
 
 /** ดึง setup ของ entry หนึ่งตัว */
 async function fetchSetup(entry) {
@@ -309,8 +440,9 @@ function buildHelpMessage() {
           ]),
           { type: "separator", margin: "md" },
           section("🤖 คำสั่งอัจฉริยะ", [
-            ["ซื้ออะไรดี", "สแกนทุกตัว → แนะนำโซน DCA"],
-            ["ขายตัวไหนดี", "สแกนทุกตัว → แจ้งตัวที่ราคาสูง"],
+            ["ภาพรวม / ตลาดวันนี้ / overview", "บทวิเคราะห์เชื่อมทุกสินทรัพย์"],
+            ["ซื้ออะไรดี / ซื้อ / buy", "สแกนทุกตัว → แนะนำโซน DCA"],
+            ["ขายตัวไหนดี / ขาย / sell", "สแกนทุกตัว → แจ้งตัวที่ราคาสูง"],
             ["น้ำมัน / DXY / ดอลลาร์", "ดูภาวะตลาดมหภาค"],
           ]),
           { type: "separator", margin: "md" },
