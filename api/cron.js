@@ -113,7 +113,8 @@ module.exports = async function handler(req, res) {
     // ── 5) Weekly Summary — ส่งเฉพาะวันจันทร์ (UTC day=1) ──────────
     const todayUTC = new Date().getUTCDay();
     if (todayUTC === 1) {
-      const weeklyMsg = buildWeeklySummary(allSetups, oilSetup, dxySetup);
+      // oilSetup/dxySetup อาจเป็น undefined ถ้า macro fetch fail — ส่ง null แทน
+      const weeklyMsg = buildWeeklySummary(allSetups, oilSetup ?? null, dxySetup ?? null);
       for (const to of targets) {
         try { await pushMessage(to.trim(), [weeklyMsg]); }
         catch (e) { console.error(`[cron] LINE push error (weekly):`, e.message); }
