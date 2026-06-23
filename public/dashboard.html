@@ -19,6 +19,25 @@
     @media (max-width: 560px) { .board { grid-template-columns: 1fr; } }
 
     .card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 0; }
+    /* Overview row — ชื่อ + ราคา + signal */
+    .card-overview { display: flex; align-items: center; gap: 12px; cursor: pointer; user-select: none; }
+    .card-overview:hover .toggle-btn { opacity: 1; }
+    .card-overview-left { flex: 1; min-width: 0; }
+    .card-overview-price { font-size: 1.3rem; font-weight: 700; margin-top: 2px; }
+    .card-overview-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+    .signal-stars { font-size: 0.85rem; letter-spacing: 1px; }
+    .rsi-chip { font-size: 0.72rem; padding: 2px 8px; border-radius: 12px; font-weight: 600; }
+    .rsi-chip.oversold  { background: rgba(21,128,61,0.25); color: #4ade80; }
+    .rsi-chip.low       { background: rgba(21,128,61,0.15); color: #86efac; }
+    .rsi-chip.neutral   { background: rgba(75,85,99,0.2);   color: #9ca3af; }
+    .rsi-chip.high      { background: rgba(234,179,8,0.15);  color: #fbbf24; }
+    .rsi-chip.overbought{ background: rgba(220,38,38,0.2);   color: #f87171; }
+    .toggle-btn { font-size: 0.75rem; color: #8b949e; background: #21262d; border: 1px solid #30363d; border-radius: 6px; padding: 4px 10px; cursor: pointer; white-space: nowrap; flex-shrink: 0; opacity: 0.7; transition: opacity 0.15s; }
+    .toggle-btn:hover { background: #30363d; opacity: 1; }
+    /* Detail section — hidden by default */
+    .card-detail { overflow: hidden; max-height: 0; transition: max-height 0.3s ease; }
+    .card-detail.expanded { max-height: 1200px; }
+    .detail-inner { padding-top: 14px; }
     .fib-meter { margin: 8px 0 12px; }
     .fib-meter-label { font-size: 0.7rem; color: #8b949e; margin-bottom: 5px; }
     .fib-meter-bar { position: relative; height: 8px; background: #21262d; border-radius: 4px; overflow: visible; margin-bottom: 4px; }
@@ -248,62 +267,106 @@
         </div>`;
     }
 
-    function renderCard(s) {
+    let _detailCounter = 0;
+    function renderCard(s, alwaysExpanded = false) {
       const closed = s.marketClosed;
       const headerCls = headerClass(s);
       const recLabel  = closed ? "🔒 ตลาดปิด" : s.recommendation;
-      return `
-        <div class="card-header ${headerCls}">
-          <div class="name">${escHtml(s.displayName || s.symbol)} · Daily</div>
-          ${s.tradeNote ? `<div class="trade-note">${escHtml(s.tradeNote)}</div>` : ""}
-          <div class="rec">${recLabel}</div>
-          ${closed && s.lastTradeDate ? `<div style="font-size:0.68rem;color:#e5e7eb;margin-top:4px">ข้อมูล ณ ${escHtml(s.lastTradeDate)}</div>` : ""}
-        </div>
-        ${closed ? `<div class="market-closed-note">⏰ ตลาดเปิด: ${escHtml(s.nextOpenICT || "—")}</div>` : ""}
-        ${s.mode === "accumulate"
-          ? `<span class="badge ACCUMULATE">🟡 โหมดสะสม</span><span class="badge ${s.trend === "UP" ? "UP" : "DOWN"}">Trend: ${s.trend}</span><span class="badge ${s.recommendation && s.recommendation.startsWith("สะสมที่ Fib") ? "ACCUMULATE" : "ACC-WAIT"}">${escHtml(s.recommendation)}</span>`
-          : `<span class="badge ${closed ? "CLOSED" : s.trend}">Trend: ${s.trend}</span>${closed ? `<span class="badge CLOSED">คาดการณ์: ${s.recommendation}</span>` : ""}`
-        }
-        <div class="price-big">$${fmt(s.price)}</div>
-        ${renderFibMeter(s)}
-        <div class="grid2">
-          <div class="stat"><label>EMA 8</label><div class="val">$${fmt(s.ema8)}</div></div>
-          <div class="stat"><label>EMA 21</label><div class="val">$${fmt(s.ema21)}</div></div>
-        </div>
-        <hr class="sep"/>
-        ${s.mode === "accumulate" && s.fibLevels ? `
-        <div style="font-size:0.7rem;color:#d97706;font-weight:700;margin-bottom:6px">📐 โซนสะสม Fibonacci</div>
-        <div style="font-size:0.68rem;color:#8b949e;margin-bottom:8px">Swing: $${fmt(s.swingLow)} → $${fmt(s.swingHigh)}</div>
-        <div class="grid2">
-          <div class="stat"><label>Fib 50%</label><div class="val" style="${s.nearFib==='50%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f500)}</div></div>
-          <div class="stat"><label>Fib 61.8%</label><div class="val" style="${s.nearFib==='61.8%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f618)}</div></div>
-          <div class="stat"><label>Fib 65%</label><div class="val" style="${s.nearFib==='65%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f650)}</div></div>
-          <div class="stat"><label>Fib 78.6%</label><div class="val" style="${s.nearFib==='78.6%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f786)}</div></div>
-        </div>` : `
-        <div class="grid2">
-          <div class="stat"><label>Entry Low</label><div class="val">$${fmt(s.entryLow)}</div></div>
-          <div class="stat"><label>Entry High</label><div class="val">$${fmt(s.entryHigh)}</div></div>
-          <div class="stat"><label>Stop Loss</label><div class="val">$${fmt(s.sl)} <small>(${s.stopPct}%)</small></div></div>
-          <div class="stat"><label>Take Profit</label><div class="val">$${fmt(s.tp)} <small>(${s.tpPct}%)</small></div></div>
-        </div>
-        ${s.fibLevels ? `
-        <hr class="sep"/>
-        <div style="font-size:0.7rem;color:#d97706;font-weight:700;margin-bottom:6px">📐 โซน DCA Fibonacci</div>
-        <div style="font-size:0.68rem;color:#8b949e;margin-bottom:8px">Swing: $${fmt(s.swingLow)} → $${fmt(s.swingHigh)}</div>
-        <div class="grid2">
-          <div class="stat"><label>Fib 50%</label><div class="val" style="${s.nearFib==='50%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f500)}</div></div>
-          <div class="stat"><label>Fib 61.8%</label><div class="val" style="${s.nearFib==='61.8%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f618)}</div></div>
-          <div class="stat"><label>Fib 65%</label><div class="val" style="${s.nearFib==='65%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f650)}</div></div>
-          <div class="stat"><label>Fib 78.6%</label><div class="val" style="${s.nearFib==='78.6%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f786)}</div></div>
-        </div>` : ""}
-        `}
-        <p class="note" style="margin-top:10px">🔧 ${escHtml(s.note)}</p>
-        ${s.aiComment ? `
-        <div class="ai-comment">
-          <div class="ai-comment-title">💬 คำแนะนำ AI</div>
-          ${escHtml(s.aiComment)}
-        </div>` : ""}
-      `;
+      const uid = `det-${_detailCounter++}`;
+
+      // ── Signal stars
+      const stars = s.signalScore
+        ? `<span class="signal-stars" title="Signal Score: ${escHtml(s.signalScore.label)}">${escHtml(s.signalScore.emoji)}</span>`
+        : "";
+
+      // ── RSI chip
+      let rsiChip = "";
+      if (s.rsi) {
+        rsiChip = `<span class="rsi-chip ${s.rsi.zone}" title="RSI ${s.rsi.value}">${escHtml(s.rsi.emoji)} ${escHtml(s.rsi.label)}</span>`;
+      }
+
+      // ── Trend badge (สั้น)
+      const trendBadge = `<span class="badge ${closed ? "CLOSED" : (s.mode === "accumulate" ? (s.fibZone?.isDCAZone ? "ACCUMULATE" : "ACC-WAIT") : s.trend)}">${
+        closed ? "ปิด" : s.trend === "UP" ? "▲ ขาขึ้น" : "▼ ขาลง"
+      }</span>`;
+
+      // ── Weekly trend (ถ้ามี)
+      const weeklyBadge = s.weeklyTrend
+        ? `<span style="font-size:0.68rem;color:${s.weeklyTrend === "UP" ? "#4ade80" : "#f87171"}">W:${s.weeklyTrend}</span>`
+        : "";
+
+      // ── Overview section (always visible)
+      const overviewHtml = `
+        <div class="card-overview" onclick="toggleDetail('${uid}', this)">
+          <div class="card-overview-left">
+            <div class="card-header ${headerCls}" style="margin-bottom:8px">
+              <div class="name">${escHtml(s.displayName || s.symbol)} · Daily${closed && s.lastTradeDate ? ` <span style="font-size:0.62rem;opacity:0.7">ณ ${escHtml(s.lastTradeDate)}</span>` : ""}</div>
+              ${s.tradeNote ? `<div class="trade-note">${escHtml(s.tradeNote)}</div>` : ""}
+              <div class="rec">${recLabel}</div>
+            </div>
+            <div class="card-overview-price">$${fmt(s.price)}</div>
+            <div class="card-overview-meta">
+              ${trendBadge}${weeklyBadge}${rsiChip}${stars}
+            </div>
+          </div>
+          <button class="toggle-btn" id="btn-${uid}">▼ รายละเอียด</button>
+        </div>`;
+
+      // ── Detail section (expandable)
+      const detailHtml = `
+        <div class="card-detail${alwaysExpanded ? " expanded" : ""}" id="${uid}">
+          <div class="detail-inner">
+            ${closed ? `<div class="market-closed-note">⏰ ตลาดเปิด: ${escHtml(s.nextOpenICT || "—")}</div>` : ""}
+            ${renderFibMeter(s)}
+            <div class="grid2">
+              <div class="stat"><label>EMA 8</label><div class="val">$${fmt(s.ema8)}</div></div>
+              <div class="stat"><label>EMA 21</label><div class="val">$${fmt(s.ema21)}</div></div>
+            </div>
+            <hr class="sep"/>
+            ${s.mode === "accumulate" && s.fibLevels ? `
+            <div style="font-size:0.7rem;color:#d97706;font-weight:700;margin-bottom:6px">📐 โซนสะสม Fibonacci</div>
+            <div style="font-size:0.68rem;color:#8b949e;margin-bottom:8px">Swing: $${fmt(s.swingLow)} → $${fmt(s.swingHigh)}</div>
+            <div class="grid2">
+              <div class="stat"><label>Fib 50%</label><div class="val" style="${s.nearFib==='50%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f500)}</div></div>
+              <div class="stat"><label>Fib 61.8%</label><div class="val" style="${s.nearFib==='61.8%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f618)}</div></div>
+              <div class="stat"><label>Fib 65%</label><div class="val" style="${s.nearFib==='65%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f650)}</div></div>
+              <div class="stat"><label>Fib 78.6%</label><div class="val" style="${s.nearFib==='78.6%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f786)}</div></div>
+            </div>` : `
+            <div class="grid2">
+              <div class="stat"><label>Entry Low</label><div class="val">$${fmt(s.entryLow)}</div></div>
+              <div class="stat"><label>Entry High</label><div class="val">$${fmt(s.entryHigh)}</div></div>
+              <div class="stat"><label>Stop Loss</label><div class="val">$${fmt(s.sl)} <small>(${s.stopPct}%)</small></div></div>
+              <div class="stat"><label>Take Profit</label><div class="val">$${fmt(s.tp)} <small>(${s.tpPct}%)</small></div></div>
+            </div>
+            ${s.fibLevels ? `
+            <hr class="sep"/>
+            <div style="font-size:0.7rem;color:#d97706;font-weight:700;margin-bottom:6px">📐 โซน DCA Fibonacci</div>
+            <div style="font-size:0.68rem;color:#8b949e;margin-bottom:8px">Swing: $${fmt(s.swingLow)} → $${fmt(s.swingHigh)}</div>
+            <div class="grid2">
+              <div class="stat"><label>Fib 50%</label><div class="val" style="${s.nearFib==='50%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f500)}</div></div>
+              <div class="stat"><label>Fib 61.8%</label><div class="val" style="${s.nearFib==='61.8%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f618)}</div></div>
+              <div class="stat"><label>Fib 65%</label><div class="val" style="${s.nearFib==='65%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f650)}</div></div>
+              <div class="stat"><label>Fib 78.6%</label><div class="val" style="${s.nearFib==='78.6%'?'color:#fbbf24;font-weight:700':''}">$${fmt(s.fibLevels.f786)}</div></div>
+            </div>` : ""}
+            `}
+            <p class="note" style="margin-top:10px">🔧 ${escHtml(s.note)}</p>
+            ${s.aiComment ? `
+            <div class="ai-comment">
+              <div class="ai-comment-title">💬 คำแนะนำ AI</div>
+              ${escHtml(s.aiComment)}
+            </div>` : ""}
+          </div>
+        </div>`;
+
+      return overviewHtml + detailHtml;
+    }
+
+    function toggleDetail(uid, clickedEl) {
+      const detail = document.getElementById(uid);
+      const btn = document.getElementById("btn-" + uid);
+      if (!detail) return;
+      const isExpanded = detail.classList.toggle("expanded");
+      if (btn) btn.textContent = isExpanded ? "▲ ซ่อน" : "▼ รายละเอียด";
     }
 
     async function fetchSetup(symbol) {
@@ -381,7 +444,7 @@
       el.innerHTML = '<p class="loading">⏳ กำลังดึงข้อมูล...</p>';
       try {
         const { setup } = await fetchSetup(symbol);
-        el.innerHTML = renderCard(setup);
+        el.innerHTML = renderCard(setup, true);
       } catch (err) {
         el.innerHTML = `<p class="error-msg">❌ ${err.message}</p>`;
       }
