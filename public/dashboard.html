@@ -148,16 +148,38 @@
     .closed-note { font-size: .68rem; color: var(--muted); background: var(--bg3); border-radius: 6px; padding: 5px 9px; margin-bottom: 8px; }
 
     /* ── Buy zone banner ───────────────────────────────── */
-    .bz { margin-top: 10px; border-radius: 10px; padding: 10px 12px; }
+    .bz { margin-top: 10px; border-radius: 10px; padding: 9px 11px; }
     .bz-now  { background: rgba(16,185,129,.12); border: 1px solid rgba(16,185,129,.3); }
     .bz-wait { background: rgba(75,85,99,.1);    border: 1px solid var(--border); }
     .bz-warn { background: rgba(239,68,68,.08);  border: 1px solid rgba(239,68,68,.2); }
-    .bz-label { font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 5px; }
+    .bz-label { font-size: .64rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
     .bz-label.green { color: var(--up); }
     .bz-label.gray  { color: var(--muted); }
     .bz-label.red   { color: var(--down); }
-    .bz-price { font-size: 1rem; font-weight: 700; color: var(--text); }
-    .bz-sub   { font-size: .7rem; color: var(--muted); margin-top: 2px; }
+    .bz-price { font-size: .95rem; font-weight: 700; color: var(--text); }
+    .bz-sub   { font-size: .68rem; color: var(--muted); margin-top: 5px; }
+    .bz-tbl   { width: 100%; border-collapse: collapse; margin-top: 2px; }
+    .bz-tbl tr { border-bottom: 1px solid rgba(255,255,255,.05); }
+    .bz-tbl tr:last-child { border-bottom: none; }
+    .bz-lv  { font-size: .72rem; color: var(--muted); padding: 3px 0; width: 52px; }
+    .bz-vl  { font-size: .75rem; font-weight: 700; color: var(--text); }
+    .bz-hint{ font-size: .65rem; color: var(--muted); text-align: right; }
+
+    /* ── Trade setup ───────────────────────────────────── */
+    .ts-box  { margin-top: 10px; border-radius: 10px; padding: 9px 11px; background: rgba(59,130,246,.07); border: 1px solid rgba(59,130,246,.2); }
+    .ts-title{ font-size: .64rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #60a5fa; margin-bottom: 6px; }
+    .ts-tbl  { width: 100%; border-collapse: collapse; }
+    .ts-tbl tr{ border-bottom: 1px solid rgba(255,255,255,.05); }
+    .ts-tbl tr:last-child{ border-bottom: none; }
+    .ts-lbl  { font-size: .72rem; color: var(--muted); padding: 3px 0; width: 80px; }
+    .ts-val  { font-size: .75rem; font-weight: 700; color: var(--text); }
+    .ts-up   { color: var(--up) !important; }
+    .ts-down { color: var(--down) !important; }
+    .ts-pct  { font-size: .65rem; font-weight: 400; opacity: .8; }
+
+    /* ── AI preview on card ────────────────────────────── */
+    .ai-preview { margin-top: 9px; padding: 7px 10px; background: var(--accent-bg); border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; font-size: .7rem; color: var(--text2); line-height: 1.6; white-space: pre-line; max-height: 88px; overflow: hidden; }
+    .ai-preview .ai-title { font-size: .62rem; color: var(--accent); font-weight: 700; margin-bottom: 2px; }
 
     /* ── Macro card ────────────────────────────────────── */
     .macro-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); }
@@ -343,51 +365,76 @@
     function buyZone(s){
       if(s.mode==='indicator'||!s.fibLevels) return '';
       const f=s.fibLevels, p=s.price;
-      const dca61=f.f618, dca78=f.f786;
 
-      // Already inside DCA zone (between 61.8% and 78.6%)
+      // Already inside DCA zone
       if(s.fibZone?.isDCAZone){
-        const lo=Math.min(dca61,dca78), hi=Math.max(dca61,dca78);
+        const lo=Math.min(f.f618,f.f786), hi=Math.max(f.f618,f.f786);
+        const rows=[
+          {pct:'61.8%',val:f.f618,dca:true},
+          {pct:'65%',  val:f.f650,dca:true},
+          {pct:'78.6%',val:f.f786,dca:true},
+        ].filter(x=>x.val<=p+((hi-lo)*0.5)); // show levels near current price
         return `<div class="bz bz-now">
-          <div class="bz-label green">🟢 อยู่ในโซน DCA แล้ว!</div>
-          <div class="bz-price">$${fmt(lo)} – $${fmt(hi)}</div>
-          <div class="bz-sub">✅ สามารถแบ่งซื้อสะสมได้เลย · แบ่ง 2–3 ครั้งอย่าใส่ทั้งหมดครั้งเดียว</div>
+          <div class="bz-label green">🟢 อยู่ในโซน DCA แล้ว — สามารถสะสมได้เลย</div>
+          <table class="bz-tbl">${rows.map(x=>`<tr>
+            <td class="bz-lv">Fib ${x.pct}</td>
+            <td class="bz-vl">$${fmt(x.val)}</td>
+            <td class="bz-hint">${x.val<=p?'📍 ใกล้ที่สุด':'ถัดไป'}</td>
+          </tr>`).join('')}</table>
+          <div class="bz-sub">แบ่งซื้อ 2–3 ครั้ง อย่าใส่ทั้งหมดครั้งเดียว</div>
         </div>`;
       }
 
-      // Find nearest fib BELOW current price (support levels, potential entry)
-      const fibs=[
-        {pct:'50%',  val:f.f500},
-        {pct:'61.8%',val:f.f618},
-        {pct:'65%',  val:f.f650},
-        {pct:'78.6%',val:f.f786},
-      ].filter(x=>x.val<p).sort((a,b)=>b.val-a.val); // nearest below price first
+      // Find 2 nearest fib levels below current price
+      const all=[
+        {pct:'50%',  val:f.f500, dca:false},
+        {pct:'61.8%',val:f.f618, dca:true},
+        {pct:'65%',  val:f.f650, dca:true},
+        {pct:'78.6%',val:f.f786, dca:true},
+      ].filter(x=>x.val<p).sort((a,b)=>b.val-a.val);
 
-      if(fibs.length>0){
-        const near=fibs[0];
-        const distPct=((p-near.val)/p*100).toFixed(1);
-        const isDCAFib=near.pct==='61.8%'||near.pct==='65%'||near.pct==='78.6%';
+      if(all.length>0){
+        const top2=all.slice(0,2);
         return `<div class="bz bz-wait">
-          <div class="bz-label gray">⏳ แนวรับถัดไป (น่าสะสม)</div>
-          <div class="bz-price">Fib ${near.pct} · $${fmt(near.val)}</div>
-          <div class="bz-sub">ห่างจากราคาปัจจุบัน ${distPct}%${isDCAFib?' · 🎯 โซน DCA':''}${fibs.length>1?` · ถัดไป Fib ${fibs[1].pct} $${fmt(fibs[1].val)}`:''}</div>
+          <div class="bz-label gray">📍 แนวรับ Fibonacci ที่ใกล้ที่สุด</div>
+          <table class="bz-tbl">${top2.map((x,i)=>{
+            const d=((p-x.val)/p*100).toFixed(1);
+            return `<tr>
+              <td class="bz-lv">Fib ${x.pct}</td>
+              <td class="bz-vl">$${fmt(x.val)}</td>
+              <td class="bz-hint">${x.dca?'🎯 DCA':''} -${d}%</td>
+            </tr>`;
+          }).join('')}</table>
         </div>`;
       }
 
-      // Price below all fib zones (below swing low area) — extremely cheap
-      if(p < f.f786){
+      // Price below all fib levels — extremely cheap
+      if(p<f.f786){
         return `<div class="bz bz-now">
-          <div class="bz-label green">🟢 ต่ำกว่าโซน Fib ทั้งหมด — ถูกมากผิดปกติ</div>
-          <div class="bz-price">Fib 78.6% อยู่ที่ $${fmt(f.f786)}</div>
-          <div class="bz-sub">ราคาต่ำมาก ควรสะสมแบบ DCA อย่าเข้าหมดครั้งเดียว</div>
+          <div class="bz-label green">🟢 ราคาต่ำกว่าโซน Fib ทั้งหมด — ถูกมากผิดปกติ</div>
+          <div class="bz-sub">Fib 78.6% อยู่ที่ $${fmt(f.f786)} · ควรสะสม DCA</div>
         </div>`;
       }
 
-      // Price above all fibs (near swing high) — expensive
+      // Price above all fibs — expensive
       return `<div class="bz bz-warn">
-        <div class="bz-label red">⚠️ ราคาสูงกว่าโซน DCA ทุกระดับ</div>
-        <div class="bz-price">โซน DCA เริ่มที่ Fib 61.8% · $${fmt(f.f618)}</div>
-        <div class="bz-sub">ยังไม่น่าสะสม — รอราคาลงมาก่อน</div>
+        <div class="bz-label red">⚠️ ราคาสูงกว่าโซน DCA ทั้งหมด — รอราคาลงก่อน</div>
+        <div class="bz-sub">โซน DCA เริ่มที่ Fib 61.8% · $${fmt(f.f618)}</div>
+      </div>`;
+    }
+
+    // ── Trade Setup (Crypto trade mode) ──────────────────────
+    function tradeSetup(s){
+      if(s.mode!==null||!s.sl||!s.tp||!s.entryLow) return '';
+      const rec=s.recommendation||'';
+      const isShort=rec==='SHORT';
+      return `<div class="ts-box">
+        <div class="ts-title">⚡ Trade Setup${isShort?' (SHORT)':''}</div>
+        <table class="ts-tbl">
+          <tr><td class="ts-lbl">Entry Zone</td><td class="ts-val">$${fmt(s.entryLow)} – $${fmt(s.entryHigh)}</td></tr>
+          <tr><td class="ts-lbl">Stop Loss</td><td class="ts-val ts-down">$${fmt(s.sl)} <span class="ts-pct">(-${s.stopPct}%)</span></td></tr>
+          <tr><td class="ts-lbl">Take Profit</td><td class="ts-val ts-up">$${fmt(s.tp)} <span class="ts-pct">(+${s.tpPct}%)</span></td></tr>
+        </table>
       </div>`;
     }
 
@@ -486,7 +533,8 @@
           <div class="chips">${tChip}${wChip}${rChip}${mChip}</div>
           ${fibBar(s)}
           ${buyZone(s)}
-          ${s.aiComment?`<div style="margin-top:8px;padding:7px 10px;background:var(--accent-bg);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;font-size:.7rem;color:var(--text2);line-height:1.55">${esc(s.aiComment.split('\n')[0])}</div>`:''}
+          ${tradeSetup(s)}
+          ${s.aiComment?`<div class="ai-preview"><div class="ai-title">💬 AI</div>${esc(s.aiComment)}</div>`:''}
         </div>
         <div class="tog${exp?' open':''}" onclick="tog('${id}',this)">
           <span>รายละเอียด + R:R</span><span class="arr">▼</span>
