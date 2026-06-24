@@ -6,12 +6,17 @@
  * Security: ตรวจ Authorization header ที่ Vercel ส่งมาให้ (CRON_SECRET)
  *
  * Push budget (LINE free 200/เดือน):
- *   - Daily main carousel  : 1/day × 30 = 30
- *   - Daily macro card     : 1/day × 30 = 30
- *   - Daily news digest    : 0–1/day × 30 ≤ 30  (เฉพาะวันที่มีข่าวสำคัญ)
- *   - RSI alert (batch)    : 0–1/day × 30 ≤ 30  (เฉพาะวันที่ trigger)
- *   - Weekly summary (จ.)  : 1/week × 4  = 4
- *   worst-case total       : 124/month ✅ (< 200 limit)
+ *   Morning cron 07:00 ICT (/api/cron):
+ *   - Daily carousel (BTC/PAXG/VOO) : 1/day × 30 = 30
+ *   - Daily macro card (Oil+DXY)     : 1/day × 30 = 30
+ *   - News digest (ถ้ามีข่าวสำคัญ)   : 0–1/day × 30 ≤ 30
+ *   - RSI alert (RSI ≤ 35)           : 0–1/day × 30 ≤ 30
+ *   - Weekly summary (วันจันทร์)      : 1/week × 4  = 4
+ *
+ *   Afternoon cron 19:00 ICT (/api/cron-alert):
+ *   - Oversold alert crypto (RSI ≤ 30): 0–1/day × 30 ≤ 30
+ *
+ *   worst-case total: 154/200 ✅
  */
 
 const { fetchCandles } = require("../lib/binance");

@@ -139,6 +139,12 @@
     .sub-head { font-size: .65rem; color: var(--warn); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin: 10px 0 4px; }
     .ai-box { margin-top: 10px; padding: 9px 11px; background: var(--accent-bg); border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; font-size: .72rem; color: var(--text2); line-height: 1.6; white-space: pre-line; }
     .ai-title { font-size: .65rem; color: var(--accent); font-weight: 700; margin-bottom: 3px; }
+    .rr-box { margin-top: 12px; padding: 10px 12px; background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.2); border-radius: 10px; }
+    .rr-title { font-size: .68rem; color: var(--warn); font-weight: 700; margin-bottom: 8px; }
+    .rr-row { display: flex; justify-content: space-between; font-size: .75rem; padding: 3px 0; }
+    .rr-row .lbl { color: var(--muted); }
+    .rr-ratio { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(245,158,11,.2); font-size: .82rem; font-weight: 700; color: var(--text); }
+    .rr-hint { font-size: .72rem; font-weight: 400; color: var(--muted); }
     .closed-note { font-size: .68rem; color: var(--muted); background: var(--bg3); border-radius: 6px; padding: 5px 9px; margin-bottom: 8px; }
 
     /* ── Macro card ────────────────────────────────────── */
@@ -322,11 +328,64 @@
     }
 
     // ── Fib level rows ────────────────────────────────────────
+    // ── R:R Calculator ────────────────────────────────────────
+    function rrCalc(s){
+      if(s.mode==='indicator') return '';
+      // Accumulate mode: entry = Fib 61.8%, target = swing high, stop = Fib 78.6%
+      if(s.mode==='accumulate'&&s.fibLevels){
+        const entry=s.fibLevels.f618, target=s.swingHigh, stop=s.fibLevels.f786;
+        const risk=entry-stop, reward=target-entry;
+        if(risk<=0) return '';
+        const rr=(reward/risk).toFixed(1);
+        const rrCls=parseFloat(rr)>=2?'up':parseFloat(rr)>=1?'warn':'down';
+        return `<div class="rr-box">
+          <div class="rr-title">🎯 Risk:Reward (ถ้าซื้อที่ Fib 61.8%)</div>
+          <div class="rr-row">
+            <span class="lbl">Entry (Fib 61.8%)</span><span class="val">$${fmt(entry)}</span>
+          </div>
+          <div class="rr-row">
+            <span class="lbl">Target (Swing High)</span><span class="val up">$${fmt(target)} (+${((reward/entry)*100).toFixed(1)}%)</span>
+          </div>
+          <div class="rr-row">
+            <span class="lbl">Stop (Fib 78.6%)</span><span class="val down">$${fmt(stop)} (-${((risk/entry)*100).toFixed(1)}%)</span>
+          </div>
+          <div class="rr-ratio">R:R = 1 : <span class="${rrCls}">${rr}</span>
+            <span class="rr-hint">${parseFloat(rr)>=2?' ✅ คุ้มค่า':parseFloat(rr)>=1?' ⚖️ พอรับได้':' ⚠️ ความเสี่ยงสูง'}</span>
+          </div>
+        </div>`;
+      }
+      // Trade mode: entry mid, target = tp, stop = sl
+      if(s.sl&&s.tp&&s.entryLow){
+        const entry=(s.entryLow+s.entryHigh)/2, risk=entry-s.sl, reward=s.tp-entry;
+        if(risk<=0) return '';
+        const rr=(reward/risk).toFixed(1);
+        const rrCls=parseFloat(rr)>=2?'up':parseFloat(rr)>=1?'warn':'down';
+        return `<div class="rr-box">
+          <div class="rr-title">🎯 Risk:Reward</div>
+          <div class="rr-row">
+            <span class="lbl">Entry (กลาง Zone)</span><span class="val">$${fmt(entry)}</span>
+          </div>
+          <div class="rr-row">
+            <span class="lbl">Take Profit</span><span class="val up">$${fmt(s.tp)} (+${s.tpPct}%)</span>
+          </div>
+          <div class="rr-row">
+            <span class="lbl">Stop Loss</span><span class="val down">$${fmt(s.sl)} (-${s.stopPct}%)</span>
+          </div>
+          <div class="rr-ratio">R:R = 1 : <span class="${rrCls}">${rr}</span>
+            <span class="rr-hint">${parseFloat(rr)>=2?' ✅ คุ้มค่า':parseFloat(rr)>=1?' ⚖️ พอรับได้':' ⚠️ ความเสี่ยงสูง'}</span>
+          </div>
+        </div>`;
+      }
+      return '';
+    }
+
     function fibRows(s){
       if(!s.fibLevels) return '';
       const f=s.fibLevels;
-      const r=(k,l)=>`<div class="srow"><span class="lbl">${l}</span><span class="val ${s.nearFib===l?'warn':''}">$${fmt(f[k])}</span></div>`;
-      return `<div class="sub-head">📐 โซน Fibonacci</div>${r('f500','50%')}${r('f618','61.8%')}${r('f650','65%')}${r('f786','78.6%')}`;
+      const r=(k,l)=>`<div class="srow"><span class="lbl">Fib ${l}</span><span class="val ${s.nearFib===l?'warn':''}">$${fmt(f[k])}</span></div>`;
+      return `<div class="sub-head">📐 โซน Fibonacci (โซน DCA)</div>
+        ${r('f500','50%')}${r('f618','61.8%')}${r('f650','65%')}${r('f786','78.6%')}
+        <div style="font-size:.65rem;color:var(--muted);margin-top:4px">💡 Fib 61.8–78.6% = โซนที่นักลงทุนมักสะสม</div>`;
     }
 
     // ── Render card ───────────────────────────────────────────
@@ -341,12 +400,12 @@
         :s.trend==='UP'?`<span class="chip chip-up">▲ ขาขึ้น</span>`:`<span class="chip chip-down">▼ ขาลง</span>`;
       const wChip=s.weeklyTrend?`<span class="chip ${s.weeklyTrend==='UP'?'chip-up':'chip-down'}">W:${s.weeklyTrend}</span>`:'';
       const rChip=s.rsi?`<span class="chip ${rsiCls(s.rsi.zone)}">${esc(s.rsi.emoji)} ${esc(s.rsi.label)}</span>`:'';
-      const mChip=s.macd?.cross==='bullish'?`<span class="chip chip-up">⚡ Bullish</span>`:s.macd?.cross==='bearish'?`<span class="chip chip-down">⚡ Bearish</span>`:'';
+      const mChip=s.macd?.cross==='bullish'?`<span class="chip chip-up">⚡ MACD Bullish</span>`:s.macd?.cross==='bearish'?`<span class="chip chip-down">⚡ MACD Bearish</span>`:'';
 
-      const tradeContent = s.mode==='accumulate'&&s.fibLevels ? fibRows(s) : `
+      const tradeRows = s.mode==='accumulate'&&s.fibLevels ? fibRows(s) : `
         <div class="srow"><span class="lbl">Entry Zone</span><span class="val">$${fmt(s.entryLow)} – $${fmt(s.entryHigh)}</span></div>
-        <div class="srow"><span class="lbl">Stop Loss</span><span class="val down">$${fmt(s.sl)} (${s.stopPct}%)</span></div>
-        <div class="srow"><span class="lbl">Take Profit</span><span class="val up">$${fmt(s.tp)} (${s.tpPct}%)</span></div>
+        <div class="srow"><span class="lbl">Stop Loss</span><span class="val down">$${fmt(s.sl)} (-${s.stopPct}%)</span></div>
+        <div class="srow"><span class="lbl">Take Profit</span><span class="val up">$${fmt(s.tp)} (+${s.tpPct}%)</span></div>
         ${fibRows(s)}`;
 
       return `<div class="card">
@@ -365,14 +424,25 @@
           ${fibBar(s)}
         </div>
         <div class="tog${exp?' open':''}" onclick="tog('${id}',this)">
-          <span>รายละเอียด</span><span class="arr">▼</span>
+          <span>รายละเอียด + R:R</span><span class="arr">▼</span>
         </div>
         <div class="det${exp?' exp':''}" id="${id}">
           <div class="det-in">
-            <div class="srow"><span class="lbl">EMA 8</span><span class="val">$${fmt(s.ema8)}</span></div>
-            <div class="srow"><span class="lbl">EMA 21</span><span class="val">$${fmt(s.ema21)}</span></div>
-            ${tradeContent}
-            <div style="margin-top:8px;font-size:.68rem;color:var(--muted);line-height:1.5">🔧 ${esc(s.note)}</div>
+            <div class="sub-head">📈 Technical</div>
+            <div class="srow">
+              <span class="lbl">EMA 8 / EMA 21</span>
+              <span class="val">$${fmt(s.ema8)} / $${fmt(s.ema21)}</span>
+            </div>
+            <div class="srow">
+              <span class="lbl">RSI 14</span>
+              <span class="val" style="color:${s.rsi?.color||'inherit'}">${s.rsi?`${s.rsi.value} — ${esc(s.rsi.label)}`:'—'}</span>
+            </div>
+            <div class="srow">
+              <span class="lbl">MACD</span>
+              <span class="val" style="color:${s.macd?.cross==='bullish'?'var(--up)':s.macd?.cross==='bearish'?'var(--down)':'inherit'}">${s.macd?esc(s.macd.label):'—'}</span>
+            </div>
+            ${tradeRows}
+            ${rrCalc(s)}
             ${s.aiComment?`<div class="ai-box"><div class="ai-title">💬 คำแนะนำ AI</div>${esc(s.aiComment)}</div>`:''}
           </div>
         </div>
