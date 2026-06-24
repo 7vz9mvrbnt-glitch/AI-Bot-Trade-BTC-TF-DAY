@@ -40,7 +40,7 @@ const RICH_MENU = {
   name: "AI Trade Bot Menu",
   chatBarText: "📊 เมนูหลัก",
   areas: [
-    // แถวบน
+    // ── แถวบน: ภาพรวมตลาด ──────────────────────────────────
     {
       bounds: { x: 0,    y: 0, width: 833, height: 843 },
       action: { type: "message", label: "📊 ภาพรวม", text: "ภาพรวม" },
@@ -53,18 +53,26 @@ const RICH_MENU = {
       bounds: { x: 1667, y: 0, width: 833, height: 843 },
       action: { type: "message", label: "🔴 ขายตัวไหน", text: "ขายตัวไหน" },
     },
-    // แถวล่าง
+    // ── แถวล่าง: สินทรัพย์หลัก + Dashboard ─────────────────
     {
-      bounds: { x: 0,    y: 843, width: 833, height: 843 },
+      bounds: { x: 0,    y: 843, width: 625, height: 843 },
       action: { type: "message", label: "₿ BTC", text: "BTC" },
     },
     {
-      bounds: { x: 833,  y: 843, width: 834, height: 843 },
-      action: { type: "message", label: "🥇 ทอง PAXG", text: "PAXG" },
+      bounds: { x: 625,  y: 843, width: 625, height: 843 },
+      action: { type: "message", label: "📈 VOO", text: "VOO" },
     },
     {
-      bounds: { x: 1667, y: 843, width: 833, height: 843 },
-      action: { type: "message", label: "❓ วิธีใช้", text: "help" },
+      bounds: { x: 1250, y: 843, width: 625, height: 843 },
+      action: { type: "message", label: "🥇 ทอง", text: "PAXG" },
+    },
+    {
+      bounds: { x: 1875, y: 843, width: 625, height: 843 },
+      action: {
+        type: "uri",
+        label: "🌐 Dashboard",
+        uri: process.env.DASHBOARD_URL || "https://your-project.vercel.app/dashboard.html",
+      },
     },
   ],
 };
