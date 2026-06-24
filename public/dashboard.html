@@ -147,6 +147,18 @@
     .rr-hint { font-size: .72rem; font-weight: 400; color: var(--muted); }
     .closed-note { font-size: .68rem; color: var(--muted); background: var(--bg3); border-radius: 6px; padding: 5px 9px; margin-bottom: 8px; }
 
+    /* ── Buy zone banner ───────────────────────────────── */
+    .bz { margin-top: 10px; border-radius: 10px; padding: 10px 12px; }
+    .bz-now  { background: rgba(16,185,129,.12); border: 1px solid rgba(16,185,129,.3); }
+    .bz-wait { background: rgba(75,85,99,.1);    border: 1px solid var(--border); }
+    .bz-warn { background: rgba(239,68,68,.08);  border: 1px solid rgba(239,68,68,.2); }
+    .bz-label { font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 5px; }
+    .bz-label.green { color: var(--up); }
+    .bz-label.gray  { color: var(--muted); }
+    .bz-label.red   { color: var(--down); }
+    .bz-price { font-size: 1rem; font-weight: 700; color: var(--text); }
+    .bz-sub   { font-size: .7rem; color: var(--muted); margin-top: 2px; }
+
     /* ── Macro card ────────────────────────────────────── */
     .macro-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); }
     .macro-grid { display: grid; grid-template-columns: 1fr 1fr 2fr; }
@@ -327,7 +339,58 @@
         </div>`;
     }
 
-    // ── Fib level rows ────────────────────────────────────────
+    // ── Buy Zone Banner ──────────────────────────────────────
+    function buyZone(s){
+      if(s.mode==='indicator'||!s.fibLevels) return '';
+      const f=s.fibLevels, p=s.price;
+      const dca61=f.f618, dca78=f.f786;
+
+      // Already inside DCA zone (between 61.8% and 78.6%)
+      if(s.fibZone?.isDCAZone){
+        const lo=Math.min(dca61,dca78), hi=Math.max(dca61,dca78);
+        return `<div class="bz bz-now">
+          <div class="bz-label green">🟢 อยู่ในโซน DCA แล้ว!</div>
+          <div class="bz-price">$${fmt(lo)} – $${fmt(hi)}</div>
+          <div class="bz-sub">✅ สามารถแบ่งซื้อสะสมได้เลย · แบ่ง 2–3 ครั้งอย่าใส่ทั้งหมดครั้งเดียว</div>
+        </div>`;
+      }
+
+      // Find nearest fib BELOW current price (support levels, potential entry)
+      const fibs=[
+        {pct:'50%',  val:f.f500},
+        {pct:'61.8%',val:f.f618},
+        {pct:'65%',  val:f.f650},
+        {pct:'78.6%',val:f.f786},
+      ].filter(x=>x.val<p).sort((a,b)=>b.val-a.val); // nearest below price first
+
+      if(fibs.length>0){
+        const near=fibs[0];
+        const distPct=((p-near.val)/p*100).toFixed(1);
+        const isDCAFib=near.pct==='61.8%'||near.pct==='65%'||near.pct==='78.6%';
+        return `<div class="bz bz-wait">
+          <div class="bz-label gray">⏳ แนวรับถัดไป (น่าสะสม)</div>
+          <div class="bz-price">Fib ${near.pct} · $${fmt(near.val)}</div>
+          <div class="bz-sub">ห่างจากราคาปัจจุบัน ${distPct}%${isDCAFib?' · 🎯 โซน DCA':''}${fibs.length>1?` · ถัดไป Fib ${fibs[1].pct} $${fmt(fibs[1].val)}`:''}</div>
+        </div>`;
+      }
+
+      // Price below all fib zones (below swing low area) — extremely cheap
+      if(p < f.f786){
+        return `<div class="bz bz-now">
+          <div class="bz-label green">🟢 ต่ำกว่าโซน Fib ทั้งหมด — ถูกมากผิดปกติ</div>
+          <div class="bz-price">Fib 78.6% อยู่ที่ $${fmt(f.f786)}</div>
+          <div class="bz-sub">ราคาต่ำมาก ควรสะสมแบบ DCA อย่าเข้าหมดครั้งเดียว</div>
+        </div>`;
+      }
+
+      // Price above all fibs (near swing high) — expensive
+      return `<div class="bz bz-warn">
+        <div class="bz-label red">⚠️ ราคาสูงกว่าโซน DCA ทุกระดับ</div>
+        <div class="bz-price">โซน DCA เริ่มที่ Fib 61.8% · $${fmt(f.f618)}</div>
+        <div class="bz-sub">ยังไม่น่าสะสม — รอราคาลงมาก่อน</div>
+      </div>`;
+    }
+
     // ── R:R Calculator ────────────────────────────────────────
     function rrCalc(s){
       if(s.mode==='indicator') return '';
@@ -422,6 +485,8 @@
           </div>
           <div class="chips">${tChip}${wChip}${rChip}${mChip}</div>
           ${fibBar(s)}
+          ${buyZone(s)}
+          ${s.aiComment?`<div style="margin-top:8px;padding:7px 10px;background:var(--accent-bg);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;font-size:.7rem;color:var(--text2);line-height:1.55">${esc(s.aiComment.split('\n')[0])}</div>`:''}
         </div>
         <div class="tog${exp?' open':''}" onclick="tog('${id}',this)">
           <span>รายละเอียด + R:R</span><span class="arr">▼</span>
