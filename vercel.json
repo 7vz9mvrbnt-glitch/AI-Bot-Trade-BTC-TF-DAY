@@ -9,7 +9,8 @@
     { "src": "/api/btc", "dest": "/api/btc.js" },
     { "src": "/api/cron", "dest": "/api/cron.js" },
     { "src": "/api/cron-alert", "dest": "/api/cron-alert.js" },
-    { "src": "/api/webhook", "dest": "/api/webhook.js" },
+    { "src": "/api/webhook",   "dest": "/api/webhook.js" },
+    { "src": "/api/richmenu", "dest": "/api/richmenu.js" },
     { "src": "/(.*)", "dest": "/public/$1" }
   ]
 }

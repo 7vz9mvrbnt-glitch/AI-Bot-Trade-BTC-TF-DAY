@@ -11,7 +11,7 @@
 const crypto = require("crypto");
 const { fetchCandles } = require("../lib/binance");
 const { analyze, buildAIComment } = require("../lib/analyze");
-const { replyMessage, buildSetupFlex, buildMacroFlex } = require("../lib/line");
+const { replyMessage, buildSetupFlex, buildMacroFlex, addQuickReply } = require("../lib/line");
 const { detectSymbol, SYMBOLS } = require("../lib/symbols");
 const { fetchCandles: fetchYahoo } = require("../lib/yahoo");
 const { buildNewsMessage } = require("../lib/news");
@@ -50,7 +50,7 @@ module.exports = async function handler(req, res) {
     // Help command
     if (lower === "help" || lower === "วิธีใช้") {
       try {
-        await replyMessage(event.replyToken, [buildHelpMessage()]);
+        await replyMessage(event.replyToken, addQuickReply([buildHelpMessage()]));
       } catch (_) {}
       continue;
     }
@@ -63,7 +63,7 @@ module.exports = async function handler(req, res) {
       try {
         const msg = await buildNewsMessage(targetEntry.symbol, targetEntry.displayName);
         if (msg) {
-          await replyMessage(event.replyToken, [msg]);
+          await replyMessage(event.replyToken, addQuickReply([msg]));
         } else {
           await replyMessage(event.replyToken, [{ type: "text", text: `📰 ไม่พบข่าวสำหรับ ${targetEntry.displayName || targetEntry.symbol} ในขณะนี้` }]);
         }
@@ -85,7 +85,7 @@ module.exports = async function handler(req, res) {
     )) {
       try {
         const msgs = await buildMarketOverview();
-        await replyMessage(event.replyToken, msgs);
+        await replyMessage(event.replyToken, addQuickReply(msgs));
       } catch (err) {
         console.error("[webhook] overview error:", err.message);
         try { await replyMessage(event.replyToken, [{ type: "text", text: `❌ ดึงข้อมูลไม่ได้: ${err.message}` }]); } catch (_) {}
@@ -100,7 +100,7 @@ module.exports = async function handler(req, res) {
     )) {
       try {
         const msgs = await buildBuyRecommendation();
-        await replyMessage(event.replyToken, msgs);
+        await replyMessage(event.replyToken, addQuickReply(msgs));
       } catch (err) {
         console.error("[webhook] buyRec error:", err.message);
         try { await replyMessage(event.replyToken, [{ type: "text", text: `❌ ดึงข้อมูลไม่ได้: ${err.message}` }]); } catch (_) {}
@@ -115,7 +115,7 @@ module.exports = async function handler(req, res) {
     )) {
       try {
         const msgs = await buildSellRecommendation();
-        await replyMessage(event.replyToken, msgs);
+        await replyMessage(event.replyToken, addQuickReply(msgs));
       } catch (err) {
         console.error("[webhook] sellRec error:", err.message);
         try { await replyMessage(event.replyToken, [{ type: "text", text: `❌ ดึงข้อมูลไม่ได้: ${err.message}` }]); } catch (_) {}
@@ -135,7 +135,7 @@ module.exports = async function handler(req, res) {
       setup.mode = entry.mode || null;
       setup.aiComment = buildAIComment(setup);
       const flex = buildSetupFlex(setup);
-      await replyMessage(event.replyToken, [flex]);
+      await replyMessage(event.replyToken, addQuickReply([flex]));
     } catch (err) {
       console.error("[webhook] error:", err.message);
       try {
