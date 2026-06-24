@@ -368,12 +368,11 @@
 
       // Already inside DCA zone
       if(s.fibZone?.isDCAZone){
-        const lo=Math.min(f.f618,f.f786), hi=Math.max(f.f618,f.f786);
         const rows=[
-          {pct:'61.8%',val:f.f618,dca:true},
-          {pct:'65%',  val:f.f650,dca:true},
-          {pct:'78.6%',val:f.f786,dca:true},
-        ].filter(x=>x.val<=p+((hi-lo)*0.5)); // show levels near current price
+          {pct:'61.8%',val:f.f618},
+          {pct:'65%',  val:f.f650},
+          {pct:'78.6%',val:f.f786},
+        ]; // แสดงทุก DCA level เสมอ
         return `<div class="bz bz-now">
           <div class="bz-label green">🟢 อยู่ในโซน DCA แล้ว — สามารถสะสมได้เลย</div>
           <table class="bz-tbl">${rows.map(x=>`<tr>
@@ -425,7 +424,7 @@
 
     // ── Trade Setup (Crypto trade mode) ──────────────────────
     function tradeSetup(s){
-      if(s.mode!==null||!s.sl||!s.tp||!s.entryLow) return '';
+      if(s.mode!=null||s.sl==null||s.tp==null||!s.entryLow) return '';
       const rec=s.recommendation||'';
       const isShort=rec==='SHORT';
       return `<div class="ts-box">
