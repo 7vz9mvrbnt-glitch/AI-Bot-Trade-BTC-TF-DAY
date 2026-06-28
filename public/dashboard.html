@@ -489,10 +489,22 @@
         </div>`;
       }
 
-      // Price above all fibs — expensive
+      // Price above all fibs — expensive; show nearest extension target
+      const extLevels=s.fibLevels?[
+        {pct:'Ext 100%',   val:s.fibLevels.fE100},
+        {pct:'Ext 127.2%', val:s.fibLevels.fE1272},
+        {pct:'Ext 161.8%', val:s.fibLevels.fE1618},
+        {pct:'Ext 261.8%', val:s.fibLevels.fE2618},
+      ].filter(x=>x.val&&x.val>p).sort((a,b)=>a.val-b.val):[];
+      const nearExt=extLevels[0];
       return `<div class="bz bz-warn">
         <div class="bz-label red">⚠️ ราคาสูงกว่าโซน DCA ทั้งหมด — รอราคาลงก่อน</div>
         <div class="bz-sub">โซน DCA เริ่มที่ Fib 61.8% · $${fmt(f.f618)}</div>
+        ${nearExt?`<table class="bz-tbl" style="margin-top:6px">
+          <tr><td class="bz-lv" style="color:var(--up)">${nearExt.pct}</td>
+          <td class="bz-vl" style="color:var(--up)">$${fmt(nearExt.val)}</td>
+          <td class="bz-hint" style="color:var(--up)">🚀 เป้ากำไรถัดไป</td></tr>
+        </table>`:''}
       </div>`;
     }
 
@@ -512,51 +524,66 @@
     }
 
     // ── R:R Calculator ────────────────────────────────────────
+    function rrScenario(label, entry, stop, tp, note=''){
+      const risk=entry-stop, reward=tp-entry;
+      if(risk<=0||reward<=0) return '';
+      const rr=(reward/risk).toFixed(1);
+      const cls=parseFloat(rr)>=2?'up':parseFloat(rr)>=1?'warn':'down';
+      const hint=parseFloat(rr)>=2?' ✅':parseFloat(rr)>=1?' ⚖️':' ⚠️';
+      return `<div class="rr-row" style="border-top:1px solid rgba(245,158,11,.1);padding-top:5px;margin-top:3px">
+        <span class="lbl">${label}${note?` <span style="opacity:.6;font-size:.62rem">${note}</span>`:''}</span>
+        <span style="font-size:.75rem;font-weight:700;color:var(--up)">$${fmt(tp)}</span>
+        <span class="rr-ratio" style="margin:0;padding:0;border:none;font-size:.75rem">1:<span class="${cls}">${rr}</span>${hint}</span>
+      </div>`;
+    }
+
     function rrCalc(s){
       if(s.mode==='indicator') return '';
-      // Accumulate mode: entry = Fib 61.8%, target = swing high, stop = Fib 78.6%
+      // Accumulate mode: entry = Fib 61.8%, stop = Fib 78.6%, TP หลายระดับ
       if(s.mode==='accumulate'&&s.fibLevels){
-        const entry=s.fibLevels.f618, target=s.swingHigh, stop=s.fibLevels.f786;
-        const risk=entry-stop, reward=target-entry;
+        const entry=s.fibLevels.f618, stop=s.fibLevels.f786;
+        const risk=entry-stop;
         if(risk<=0) return '';
-        const rr=(reward/risk).toFixed(1);
-        const rrCls=parseFloat(rr)>=2?'up':parseFloat(rr)>=1?'warn':'down';
+        const f=s.fibLevels;
         return `<div class="rr-box">
-          <div class="rr-title">🎯 Risk:Reward (ถ้าซื้อที่ Fib 61.8%)</div>
+          <div class="rr-title">🎯 Risk:Reward — เปรียบ 3 ระดับ (Entry: Fib 61.8%)</div>
           <div class="rr-row">
             <span class="lbl">Entry (Fib 61.8%)</span><span class="val">$${fmt(entry)}</span>
           </div>
           <div class="rr-row">
-            <span class="lbl">Target (Swing High)</span><span class="val up">$${fmt(target)} (+${((reward/entry)*100).toFixed(1)}%)</span>
+            <span class="lbl">Stop Loss (Fib 78.6%)</span><span class="val down">$${fmt(stop)} (-${((risk/entry)*100).toFixed(1)}%)</span>
           </div>
-          <div class="rr-row">
-            <span class="lbl">Stop (Fib 78.6%)</span><span class="val down">$${fmt(stop)} (-${((risk/entry)*100).toFixed(1)}%)</span>
-          </div>
-          <div class="rr-ratio">R:R = 1 : <span class="${rrCls}">${rr}</span>
-            <span class="rr-hint">${parseFloat(rr)>=2?' ✅ คุ้มค่า':parseFloat(rr)>=1?' ⚖️ พอรับได้':' ⚠️ ความเสี่ยงสูง'}</span>
-          </div>
+          <div style="font-size:.65rem;color:var(--muted);margin:6px 0 2px">เป้ากำไร (Fib Extension):</div>
+          ${rrScenario('TP1 · Ext 100%',entry,stop,f.fE100,'อนุรักษ์นิยม')}
+          ${rrScenario('TP2 · Ext 127.2%',entry,stop,f.fE1272,'สมดุล')}
+          ${f.fE1618?rrScenario('TP3 · Ext 161.8% ★',entry,stop,f.fE1618,'แนะนำ'):''}
+          ${f.fE2618?rrScenario('TP4 · Ext 261.8%',entry,stop,f.fE2618,'Bull Run'):''}
+          <div style="font-size:.63rem;color:var(--muted);margin-top:6px">💡 Extension = swingLow + range × multiplier</div>
         </div>`;
       }
-      // Trade mode: entry mid, target = tp, stop = sl
-      if(s.sl&&s.tp&&s.entryLow){
+      // Trade mode: ATR-based TP + แสดง fE1618 เป็น extended target
+      if(s.sl!=null&&s.tp!=null&&s.entryLow){
         const entry=(s.entryLow+s.entryHigh)/2, risk=entry-s.sl, reward=s.tp-entry;
         if(risk<=0) return '';
         const rr=(reward/risk).toFixed(1);
         const rrCls=parseFloat(rr)>=2?'up':parseFloat(rr)>=1?'warn':'down';
+        const extTarget=s.fibLevels?.fE1618;
+        const extRow=extTarget?rrScenario('Extended · Ext 161.8%',entry,s.sl,extTarget,'ถ้า Breakout'):'';
         return `<div class="rr-box">
-          <div class="rr-title">🎯 Risk:Reward</div>
+          <div class="rr-title">🎯 Risk:Reward (ATR-based)</div>
           <div class="rr-row">
             <span class="lbl">Entry (กลาง Zone)</span><span class="val">$${fmt(entry)}</span>
           </div>
           <div class="rr-row">
-            <span class="lbl">Take Profit</span><span class="val up">$${fmt(s.tp)} (+${s.tpPct}%)</span>
+            <span class="lbl">Take Profit (TP)</span><span class="val up">$${fmt(s.tp)} (+${s.tpPct}%)</span>
           </div>
           <div class="rr-row">
-            <span class="lbl">Stop Loss</span><span class="val down">$${fmt(s.sl)} (-${s.stopPct}%)</span>
+            <span class="lbl">Stop Loss (SL)</span><span class="val down">$${fmt(s.sl)} (-${s.stopPct}%)</span>
           </div>
           <div class="rr-ratio">R:R = 1 : <span class="${rrCls}">${rr}</span>
             <span class="rr-hint">${parseFloat(rr)>=2?' ✅ คุ้มค่า':parseFloat(rr)>=1?' ⚖️ พอรับได้':' ⚠️ ความเสี่ยงสูง'}</span>
           </div>
+          ${extRow}
         </div>`;
       }
       return '';
@@ -583,10 +610,34 @@
     function fibRows(s){
       if(!s.fibLevels) return '';
       const f=s.fibLevels;
-      const r=(k,l)=>`<div class="srow"><span class="lbl">Fib ${l}</span><span class="val ${s.nearFib===l?'warn':''}">$${fmt(f[k])}</span></div>`;
-      return `<div class="sub-head">📐 โซน Fibonacci (โซน DCA)</div>
-        ${r('f500','50%')}${r('f618','61.8%')}${r('f650','65%')}${r('f786','78.6%')}
-        <div style="font-size:.65rem;color:var(--muted);margin-top:4px">💡 Fib 61.8–78.6% = โซนที่นักลงทุนมักสะสม</div>`;
+      const r=(k,l,dca)=>`<div class="srow">
+        <span class="lbl">Fib ${l}${dca?' 🎯':''}</span>
+        <span class="val ${s.nearFib===l?'warn':''}">$${fmt(f[k])}</span>
+      </div>`;
+      const rrRow=(label,tp,entry,stop,note)=>{
+        const risk=entry-stop, reward=tp-entry;
+        if(risk<=0||reward<=0) return '';
+        const ratio=(reward/risk).toFixed(1);
+        const cls=parseFloat(ratio)>=2?'up':parseFloat(ratio)>=1?'warn':'down';
+        return `<div class="srow">
+          <span class="lbl">${label}</span>
+          <span class="val up">$${fmt(tp)}</span>
+          <span class="val ${cls}" style="font-size:.7rem"> R:R 1:${ratio} ${note}</span>
+        </div>`;
+      };
+      const entry=f.f618, stop=f.f786;
+      const extSection=f.fE1618?`
+        <div class="sub-head" style="margin-top:10px">🚀 Fibonacci Extension (เป้ากำไร)</div>
+        <div style="font-size:.63rem;color:var(--muted);margin-bottom:4px">คำนวณจาก: SwingLow + Range × multiplier</div>
+        ${rrRow('Ext 100% (Swing High)',f.fE100,entry,stop,'(อนุรักษ์นิยม)')}
+        ${rrRow('Ext 127.2%',f.fE1272,entry,stop,'')}
+        ${rrRow('★ Ext 161.8%',f.fE1618,entry,stop,'(แนะนำ)')}
+        ${rrRow('Ext 261.8%',f.fE2618,entry,stop,'(Bull Run)')}
+        <div style="font-size:.63rem;color:var(--muted);margin-top:5px">💡 Extension = ระดับแนวต้านเมื่อราคาทะลุจุดสูงเดิม</div>`:'';
+      return `<div class="sub-head">📐 Fibonacci Retracement (แนวรับ / โซน DCA)</div>
+        ${r('f500','50%',false)}${r('f618','61.8%',true)}${r('f650','65%',true)}${r('f786','78.6%',true)}
+        <div style="font-size:.63rem;color:var(--muted);margin-top:4px">💡 Fib 61.8–78.6% = โซน DCA ที่ดีที่สุด</div>
+        ${extSection}`;
     }
 
     // ── Render card ───────────────────────────────────────────
