@@ -206,6 +206,27 @@
     .loading { color: var(--muted); font-size: .82rem; padding: 14px; }
     .err { color: var(--down); font-size: .8rem; padding: 12px; }
     .scan-info { font-size: .72rem; color: var(--muted); margin-bottom: 14px; }
+
+    /* ── R:R badge chip ────────────────────────────────── */
+    .chip-rr { background: rgba(230,81,0,.12); color: #fb923c; border: 1px solid rgba(251,146,60,.3); }
+    [data-theme="light"] .chip-rr { background: #fff3e0; color: #e65100; border-color: #ffcc80; }
+
+    /* ── News section ──────────────────────────────────── */
+    .news-wrap { display: flex; flex-direction: column; gap: 6px; }
+    .news-item { display: flex; gap: 10px; padding: 8px 12px; background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; font-size: .76rem; align-items: flex-start; }
+    .news-tag { flex-shrink: 0; padding: 2px 8px; border-radius: 12px; background: rgba(59,130,246,.12); color: #60a5fa; font-size: .66rem; font-weight: 700; white-space: nowrap; }
+    .news-title { color: var(--text2); line-height: 1.5; flex: 1; }
+    .news-age { flex-shrink: 0; color: var(--muted); font-size: .67rem; white-space: nowrap; }
+    .news-empty { color: var(--muted); font-size: .78rem; padding: 10px 0; font-style: italic; }
+
+    /* ── Glossary ──────────────────────────────────────── */
+    .glossary { margin-top: 40px; padding: 20px 20px 24px; background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; }
+    .glossary h3 { font-size: .85rem; font-weight: 700; color: var(--text2); margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+    .gloss-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+    .gloss-card { padding: 11px 13px; background: var(--bg3); border-radius: 10px; border: 1px solid var(--border); }
+    .gloss-term { font-size: .72rem; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+    .gloss-desc { font-size: .7rem; color: var(--text2); line-height: 1.55; }
+    .gloss-ex { margin-top: 4px; font-size: .66rem; color: var(--muted); line-height: 1.5; }
   </style>
 </head>
 <body>
@@ -227,40 +248,7 @@
     <!-- scan info -->
     <p class="scan-info" id="scanInfo">กำลังสแกนสินทรัพย์ทั้งหมด...</p>
 
-    <!-- 🟢 น่าสะสม -->
-    <div class="sec-head">
-      <span class="sec-badge green">🟢 น่าสะสม / DCA Ready</span>
-      <span class="sec-count" id="cnt-buy"></span>
-    </div>
-    <div class="card-grid" id="grp-buy"><div class="loading">⏳ กำลังโหลด...</div></div>
-
-    <!-- 🔴 ระวัง -->
-    <div class="sec-head">
-      <span class="sec-badge red">🔴 ระวัง — ราคาสูง / อ่อนแรง</span>
-      <span class="sec-count" id="cnt-sell"></span>
-    </div>
-    <div class="card-grid" id="grp-sell"><div class="loading">⏳ กำลังโหลด...</div></div>
-
-    <!-- ⚖️ รอดู -->
-    <div class="sec-head">
-      <span class="sec-badge gray">⚖️ รอดู — ยังไม่มีสัญญาณชัด</span>
-      <span class="sec-count" id="cnt-neutral"></span>
-    </div>
-    <div class="card-grid" id="grp-neutral"><div class="loading">⏳ กำลังโหลด...</div></div>
-
-    <!-- 🌐 Macro -->
-    <div class="sec-head">
-      <span class="sec-badge blue">🌐 ปัจจัยมหภาค</span>
-    </div>
-    <div class="macro-card">
-      <div class="macro-grid" id="macro-grid">
-        <div class="mc"><div class="loading">⏳ น้ำมัน...</div></div>
-        <div class="mc"><div class="loading">⏳ DXY...</div></div>
-        <div class="mc"><div class="loading">⏳ วิเคราะห์...</div></div>
-      </div>
-    </div>
-
-    <!-- 🔍 Search -->
+    <!-- 🔍 Search — ด้านบนสุด -->
     <div class="sec-head">
       <span class="sec-badge gray">🔍 ดู Setup รายตัว</span>
     </div>
@@ -296,6 +284,92 @@
       <button class="btn-main" onclick="loadOne()">ดู</button>
     </div>
     <div class="search-out" id="search-out"></div>
+
+    <!-- 🌐 Macro -->
+    <div class="sec-head">
+      <span class="sec-badge blue">🌐 ปัจจัยมหภาค</span>
+    </div>
+    <div class="macro-card">
+      <div class="macro-grid" id="macro-grid">
+        <div class="mc"><div class="loading">⏳ น้ำมัน...</div></div>
+        <div class="mc"><div class="loading">⏳ DXY...</div></div>
+        <div class="mc"><div class="loading">⏳ วิเคราะห์...</div></div>
+      </div>
+    </div>
+
+    <!-- 📰 ข่าวล่าสุด -->
+    <div class="sec-head">
+      <span class="sec-badge blue">📰 ข่าวตลาดล่าสุด</span>
+    </div>
+    <div id="news-section"><div class="loading">⏳ กำลังโหลดข่าว...</div></div>
+
+    <!-- 🟢 น่าสะสม -->
+    <div class="sec-head">
+      <span class="sec-badge green">🟢 น่าสะสม / DCA Ready</span>
+      <span class="sec-count" id="cnt-buy"></span>
+    </div>
+    <div class="card-grid" id="grp-buy"><div class="loading">⏳ กำลังโหลด...</div></div>
+
+    <!-- 🔴 ระวัง -->
+    <div class="sec-head">
+      <span class="sec-badge red">🔴 ระวัง — ราคาสูง / อ่อนแรง</span>
+      <span class="sec-count" id="cnt-sell"></span>
+    </div>
+    <div class="card-grid" id="grp-sell"><div class="loading">⏳ กำลังโหลด...</div></div>
+
+    <!-- ⚖️ รอดู -->
+    <div class="sec-head">
+      <span class="sec-badge gray">⚖️ รอดู — ยังไม่มีสัญญาณชัด</span>
+      <span class="sec-count" id="cnt-neutral"></span>
+    </div>
+    <div class="card-grid" id="grp-neutral"><div class="loading">⏳ กำลังโหลด...</div></div>
+
+    <!-- 📚 คู่มือสัญญาณ -->
+    <section class="glossary">
+      <h3>📚 คู่มืออ่านสัญญาณ — สำหรับมือใหม่</h3>
+      <div class="gloss-grid">
+        <div class="gloss-card">
+          <div class="gloss-term">📊 RSI (Relative Strength Index)</div>
+          <div class="gloss-desc">วัด "ความร้อนแรง" ของราคา ค่าอยู่ระหว่าง 0–100</div>
+          <div class="gloss-ex">🧊 &lt;30 = ถูกเกิน (น่าซื้อ) · 🔥 &gt;70 = แพงเกิน · 😊 40–60 = สมดุล</div>
+        </div>
+        <div class="gloss-card">
+          <div class="gloss-term">⚡ MACD</div>
+          <div class="gloss-desc">วัดแรงขับเคลื่อน (Momentum) ของตลาด เปรียบค่าเฉลี่ย 2 ช่วง</div>
+          <div class="gloss-ex">✅ Bullish Cross = สัญญาณขาขึ้นเริ่มต้น · 🔴 Bearish Cross = เริ่มขาลง</div>
+        </div>
+        <div class="gloss-card">
+          <div class="gloss-term">📐 Fibonacci Zone</div>
+          <div class="gloss-desc">ระดับราคาสำคัญ คำนวณจากจุดสูง–ต่ำย้อนหลัง 90 วัน</div>
+          <div class="gloss-ex">🎯 Fib 61.8%–78.6% = โซน DCA ที่ดีที่สุด · 23.6% = ใกล้จุดสูง</div>
+        </div>
+        <div class="gloss-card">
+          <div class="gloss-term">📈 EMA 8 / EMA 21</div>
+          <div class="gloss-desc">เส้นเฉลี่ยราคา 8 วัน และ 21 วัน บอกทิศทางแนวโน้ม</div>
+          <div class="gloss-ex">▲ EMA8 &gt; EMA21 = แนวโน้มขาขึ้น · ▼ EMA8 &lt; EMA21 = ขาลง</div>
+        </div>
+        <div class="gloss-card">
+          <div class="gloss-term">⭐ Signal Score (คะแนนสัญญาณ)</div>
+          <div class="gloss-desc">คะแนนรวม 1–5 ดาว จาก EMA + RSI + MACD + Fibonacci</div>
+          <div class="gloss-ex">★★★★★ = สัญญาณแข็งแกร่งมาก · ★ = อ่อนมาก ไม่ควรเทรด</div>
+        </div>
+        <div class="gloss-card">
+          <div class="gloss-term">🎯 R:R (Risk : Reward)</div>
+          <div class="gloss-desc">อัตราส่วน "กำไรที่หวัง" ÷ "ขาดทุนสูงสุด" ต่อ 1 trade</div>
+          <div class="gloss-ex">✅ R:R ≥ 2 = คุ้มค่ามาก · ⚖️ R:R ≥ 1 = พอรับได้ · ⚠️ &lt;1 = เสี่ยงเกิน</div>
+        </div>
+        <div class="gloss-card">
+          <div class="gloss-term">🟢 DCA Zone</div>
+          <div class="gloss-desc">โซนราคาที่เหมาะ "ซื้อสะสมทยอย" อย่าใส่เงินทั้งหมดครั้งเดียว</div>
+          <div class="gloss-ex">Fib 61.8%–78.6% = โซน DCA ที่ดีที่สุด · แบ่ง 2–3 ครั้ง</div>
+        </div>
+        <div class="gloss-card">
+          <div class="gloss-term">🛡 Stop Loss (SL) / 🎯 Take Profit (TP)</div>
+          <div class="gloss-desc">SL = ราคาตัดขาดทุนอัตโนมัติ · TP = เป้าหมายกำไร</div>
+          <div class="gloss-ex">ปกติ SL อยู่ที่ Entry - 1 ATR · TP อยู่ที่ Entry + 2 ATR</div>
+        </div>
+      </div>
+    </section>
 
   </div>
 
@@ -488,6 +562,24 @@
       return '';
     }
 
+    // ── R:R Badge (compact chip for card) ────────────────
+    function rrBadge(s){
+      if(s.mode==='indicator') return '';
+      let rr=null;
+      if(s.mode==='accumulate'&&s.fibLevels){
+        const entry=s.fibLevels.f618, target=s.swingHigh, stop=s.fibLevels.f786;
+        const risk=entry-stop, reward=target-entry;
+        if(risk>0) rr=reward/risk;
+      } else if(s.sl!=null&&s.tp!=null&&s.entryLow){
+        const entry=(s.entryLow+s.entryHigh)/2;
+        const risk=entry-s.sl, reward=s.tp-entry;
+        if(risk>0) rr=reward/risk;
+      }
+      if(rr===null) return '';
+      const emoji=rr>=2?'✅':rr>=1?'⚖️':'⚠️';
+      return `<span class="chip chip-rr">R:R 1:${rr.toFixed(1)} ${emoji}</span>`;
+    }
+
     function fibRows(s){
       if(!s.fibLevels) return '';
       const f=s.fibLevels;
@@ -529,7 +621,7 @@
             <div class="price">$${fmt(s.price)}</div>
             ${s.rsi?`<div class="price-rsi">RSI ${s.rsi.value}</div>`:''}
           </div>
-          <div class="chips">${tChip}${wChip}${rChip}${mChip}</div>
+          <div class="chips">${tChip}${wChip}${rChip}${mChip}${rrBadge(s)}</div>
           ${fibBar(s)}
           ${buyZone(s)}
           ${tradeSetup(s)}
@@ -650,6 +742,28 @@
       document.getElementById('scanInfo').textContent=`สแกนแล้ว ${ok} สินทรัพย์${fail?` (โหลดไม่ได้ ${fail} ตัว)`:''} · อัปเดต ${now}`;
     }
 
+    // ── News ──────────────────────────────────────────────────
+    async function loadNews(){
+      const el=document.getElementById('news-section');
+      try{
+        const r=await fetch(`${BASE}/api/news`);
+        if(!r.ok) throw new Error(`HTTP ${r.status}`);
+        const d=await r.json();
+        if(!d.ok||!d.items||d.items.length===0){
+          el.innerHTML='<div class="news-empty">ไม่พบข่าวสำคัญในขณะนี้</div>';
+          return;
+        }
+        el.innerHTML=`<div class="news-wrap">${d.items.map(n=>`
+          <div class="news-item">
+            <span class="news-tag">${esc(n.tag)}</span>
+            <span class="news-title">${esc(n.title)}</span>
+            <span class="news-age">${esc(n.age)}</span>
+          </div>`).join('')}</div>`;
+      }catch(e){
+        el.innerHTML=`<div class="news-empty">ไม่สามารถโหลดข่าวได้ (${esc(e.message)})</div>`;
+      }
+    }
+
     // ── Search ────────────────────────────────────────────────
     async function loadOne(){
       const sym=document.getElementById('sym').value;
@@ -664,6 +778,7 @@
     }
 
     scanAll();
+    loadNews();
   </script>
 </body>
 </html>

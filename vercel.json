@@ -11,6 +11,7 @@
     { "src": "/api/cron-alert", "dest": "/api/cron-alert.js" },
     { "src": "/api/webhook",   "dest": "/api/webhook.js" },
     { "src": "/api/richmenu", "dest": "/api/richmenu.js" },
+    { "src": "/api/news",    "dest": "/api/news.js" },
     { "src": "/(.*)", "dest": "/public/$1" }
   ]
 }
