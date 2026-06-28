@@ -5,17 +5,7 @@
  */
 
 const { fetchNewsRSS, isImportant } = require("../lib/news");
-
-const WATCH_SYMBOLS = [
-  { symbol: "BTCUSDT",  tag: "BTC" },
-  { symbol: "ETHUSDT",  tag: "ETH" },
-  { symbol: "PAXGUSDT", tag: "PAXG" },
-  { symbol: "NVDA",     tag: "NVDA" },
-  { symbol: "AAPL",     tag: "AAPL" },
-  { symbol: "META",     tag: "META" },
-  { symbol: "TSLA",     tag: "TSLA" },
-  { symbol: "VOO",      tag: "VOO" },
-];
+const { getSymbols } = require("../lib/symbols");
 
 function formatAge(pubDate) {
   if (!pubDate) return "";
@@ -30,9 +20,14 @@ function formatAge(pubDate) {
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
 
+  const allSymbols = await getSymbols();
+  const watchList  = allSymbols
+    .filter((s) => s.watchNews)
+    .map((s) => ({ symbol: s.symbol, tag: s.displayName.split(" · ")[0].replace("/USDT","") }));
+
   const items = [];
   await Promise.allSettled(
-    WATCH_SYMBOLS.map(async ({ symbol, tag }) => {
+    watchList.map(async ({ symbol, tag }) => {
       try {
         const news = await fetchNewsRSS(symbol, 10);
         const hits = news.filter((n) => isImportant(n.title));

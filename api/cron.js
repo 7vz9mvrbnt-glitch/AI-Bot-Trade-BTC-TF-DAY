@@ -23,7 +23,7 @@ const { fetchCandles } = require("../lib/binance");
 const { fetchCandles: fetchYahoo } = require("../lib/yahoo");
 const { analyze, buildAIComment } = require("../lib/analyze");
 const { pushMessage, buildSetupFlex, buildMacroFlex } = require("../lib/line");
-const { SYMBOLS } = require("../lib/symbols");
+const { SYMBOLS, getSymbols } = require("../lib/symbols");
 const { buildDailyNewsDigest } = require("../lib/news");
 
 // RSI threshold สำหรับ alert
@@ -43,12 +43,11 @@ module.exports = async function handler(req, res) {
     const allSetups    = {};   // symbol → setup (ใช้สร้าง weekly summary)
     const rsiAlerts    = [];   // setups ที่ RSI ต่ำกว่า threshold
 
-    const PUSH_SYMBOLS  = ["BTCUSDT", "PAXGUSDT", "VOO"];
-    const MACRO_SYMBOLS = ["CL=F", "DX-Y.NYB"];
+    const allSymbols = await getSymbols();
 
     // ── 1) ดึงข้อมูลทุก symbol ──────────────────────────────────────
     const macroSetups = {};
-    for (const entry of SYMBOLS) {
+    for (const entry of allSymbols) {
       const { symbol, source, displayName } = entry;
       const result = { symbol, line: "pending" };
       try {
@@ -58,14 +57,15 @@ module.exports = async function handler(req, res) {
         setup.displayName = displayName;
         setup.tradeNote   = entry.tradeNote;
         setup.mode        = entry.mode || null;
+        setup.category    = entry.category || "crypto";
         setup.aiComment   = buildAIComment(setup);
 
         allSetups[symbol] = setup;
 
-        if (PUSH_SYMBOLS.includes(symbol)) {
+        if (entry.pushDaily && entry.mode !== "indicator") {
           flexBubbles.push(buildSetupFlex(setup).contents);
         }
-        if (MACRO_SYMBOLS.includes(symbol)) {
+        if (entry.mode === "indicator" && entry.pushDaily) {
           macroSetups[symbol] = setup;
         }
         // เก็บ asset ที่ RSI ต่ำกว่า threshold (ยกเว้น indicator)
@@ -89,7 +89,7 @@ module.exports = async function handler(req, res) {
       for (const to of targets) {
         try {
           await pushMessage(to.trim(), [carousel]);
-          allResults.filter((r) => PUSH_SYMBOLS.includes(r.symbol))
+          allResults.filter((r) => allSymbols.find(s => s.symbol === r.symbol)?.pushDaily)
             .forEach((r) => { r.line = "ok"; });
         } catch (e) {
           console.error(`[cron] LINE push error (main):`, e.message);
@@ -179,11 +179,8 @@ function buildWeeklySummary(setups, oil, dxy) {
     timeZone: "Asia/Bangkok", year: "numeric", month: "long", day: "numeric",
   });
 
-  const cryptoSymbols = ["BTCUSDT","ETHUSDT","BNBUSDT","XRPUSDT","SOLUSDT"];
-  const stockSymbols  = ["AAPL","MSFT","NVDA","GOOGL","AMZN","META","TSLA","VOO","QQQ","PAXGUSDT"];
-
-  const cryptoList = cryptoSymbols.map((s) => setups[s]).filter(Boolean);
-  const stockList  = stockSymbols.map((s) => setups[s]).filter(Boolean);
+  const cryptoList = Object.values(setups).filter((s) => s.category === "crypto" && s.mode !== "indicator");
+  const stockList  = Object.values(setups).filter((s) => s.category === "stock" || s.category === "etf");
 
   const cryptoUp = cryptoList.filter((s) => s.trend === "UP").length;
   const stockUp  = stockList.filter((s) => s.trend === "UP").length;

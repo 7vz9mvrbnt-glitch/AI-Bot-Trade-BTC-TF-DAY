@@ -9,7 +9,7 @@
 const { fetchCandles } = require("../lib/binance");
 const { fetchCandles: fetchYahoo } = require("../lib/yahoo");
 const { analyze } = require("../lib/analyze");
-const { SYMBOLS } = require("../lib/symbols");
+const { SYMBOLS, getSymbols } = require("../lib/symbols");
 
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -26,13 +26,15 @@ module.exports = async function handler(req, res) {
 
   try {
     const symbol = req.query?.symbol || "BTCUSDT";
-    const entry = SYMBOLS.find((s) => s.symbol === symbol);
+    const symbols = await getSymbols();
+    const entry = symbols.find((s) => s.symbol === symbol) || SYMBOLS.find((s) => s.symbol === symbol);
     const fetcher = entry?.source === "yahoo" ? fetchYahoo : fetchCandles;
     const candles = await fetcher(symbol, 160);
     const setup = analyze(candles, symbol, entry?.source, entry?.mode);
     setup.displayName = entry?.displayName || symbol;
-    setup.tradeNote = entry?.tradeNote || "";
-    setup.mode = entry?.mode || null;
+    setup.tradeNote   = entry?.tradeNote || "";
+    setup.mode        = entry?.mode || null;
+    setup.category    = entry?.category || "crypto";
     return res.status(200).json({ ok: true, setup, generatedAt: new Date().toISOString() });
   } catch (err) {
     console.error("[btc.js]", err.message);

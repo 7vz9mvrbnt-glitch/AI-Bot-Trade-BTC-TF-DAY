@@ -70,10 +70,12 @@
       padding: 4px 14px; border-radius: 20px;
       font-size: .75rem; font-weight: 700; letter-spacing: .04em;
     }
-    .sec-badge.green { background: rgba(16,185,129,.15); color: #34d399; }
-    .sec-badge.red   { background: rgba(239,68,68,.15);  color: #f87171; }
-    .sec-badge.gray  { background: var(--bg3); color: var(--muted); border: 1px solid var(--border); }
-    .sec-badge.blue  { background: rgba(59,130,246,.12); color: #60a5fa; }
+    .sec-badge.green  { background: rgba(16,185,129,.15); color: #34d399; }
+    .sec-badge.red    { background: rgba(239,68,68,.15);  color: #f87171; }
+    .sec-badge.gray   { background: var(--bg3); color: var(--muted); border: 1px solid var(--border); }
+    .sec-badge.blue   { background: rgba(59,130,246,.12); color: #60a5fa; }
+    .sec-badge.purple { background: rgba(139,92,246,.12); color: #a78bfa; }
+    .sec-badge.orange { background: rgba(249,115,22,.12); color: #fb923c; }
     .sec-count { font-size: .72rem; color: var(--muted); }
 
     /* ── Card grid ─────────────────────────────────────── */
@@ -303,26 +305,26 @@
     </div>
     <div id="news-section"><div class="loading">⏳ กำลังโหลดข่าว...</div></div>
 
-    <!-- 🟢 น่าสะสม -->
+    <!-- 🪙 Crypto -->
     <div class="sec-head">
-      <span class="sec-badge green">🟢 น่าสะสม / DCA Ready</span>
-      <span class="sec-count" id="cnt-buy"></span>
+      <span class="sec-badge blue">🪙 Crypto</span>
+      <span class="sec-count" id="cnt-crypto"></span>
     </div>
-    <div class="card-grid" id="grp-buy"><div class="loading">⏳ กำลังโหลด...</div></div>
+    <div class="card-grid" id="grp-crypto"><div class="loading">⏳ กำลังโหลด...</div></div>
 
-    <!-- 🔴 ระวัง -->
+    <!-- 📈 Stocks -->
     <div class="sec-head">
-      <span class="sec-badge red">🔴 ระวัง — ราคาสูง / อ่อนแรง</span>
-      <span class="sec-count" id="cnt-sell"></span>
+      <span class="sec-badge purple">📈 Stocks</span>
+      <span class="sec-count" id="cnt-stock"></span>
     </div>
-    <div class="card-grid" id="grp-sell"><div class="loading">⏳ กำลังโหลด...</div></div>
+    <div class="card-grid" id="grp-stock"><div class="loading">⏳ กำลังโหลด...</div></div>
 
-    <!-- ⚖️ รอดู -->
+    <!-- 🏦 ETF -->
     <div class="sec-head">
-      <span class="sec-badge gray">⚖️ รอดู — ยังไม่มีสัญญาณชัด</span>
-      <span class="sec-count" id="cnt-neutral"></span>
+      <span class="sec-badge orange">🏦 ETF</span>
+      <span class="sec-count" id="cnt-etf"></span>
     </div>
-    <div class="card-grid" id="grp-neutral"><div class="loading">⏳ กำลังโหลด...</div></div>
+    <div class="card-grid" id="grp-etf"><div class="loading">⏳ กำลังโหลด...</div></div>
 
     <!-- 📚 คู่มือสัญญาณ -->
     <section class="glossary">
@@ -763,20 +765,24 @@
         Promise.allSettled(MACRO_SYMS.map(fetchSetup)),
       ]);
 
-      // group main
-      const groups={buy:[],sell:[],neutral:[]};
+      // group by category
+      const groups={crypto:[],stock:[],etf:[]};
       let ok=0, fail=0;
-      mainResults.forEach((r,i)=>{
-        if(r.status==='fulfilled'){ groups[signalGroup(r.value)].push(r.value); ok++; }
-        else fail++;
+      mainResults.forEach((r)=>{
+        if(r.status==='fulfilled'){
+          const cat=r.value.category||'crypto';
+          if(groups[cat]) groups[cat].push(r.value);
+          else groups.crypto.push(r.value);
+          ok++;
+        } else fail++;
       });
 
-      ['buy','sell','neutral'].forEach(g=>{
+      ['crypto','stock','etf'].forEach(g=>{
         const el=document.getElementById('grp-'+g);
         const cnt=document.getElementById('cnt-'+g);
         cnt.textContent=`${groups[g].length} สินทรัพย์`;
         el.innerHTML = groups[g].length
-          ? `<div class="card-grid">${groups[g].map(s=>card(s)).join('')}</div>`
+          ? groups[g].map(s=>card(s)).join('')
           : `<div class="empty">— ไม่มีสินทรัพย์ในกลุ่มนี้ขณะนี้</div>`;
       });
 

@@ -11,7 +11,7 @@
 const { fetchCandles } = require("../lib/binance");
 const { analyze, buildAIComment } = require("../lib/analyze");
 const { pushMessage } = require("../lib/line");
-const { SYMBOLS } = require("../lib/symbols");
+const { getSymbols } = require("../lib/symbols");
 
 const OVERSOLD_THRESHOLD = 30; // เข้มกว่า morning cron (35) เพื่อกรอง noise
 
@@ -27,7 +27,8 @@ module.exports = async function handler(req, res) {
     if (targets.length === 0) return res.status(200).json({ ok: true, skipped: "no targets" });
 
     // สแกนเฉพาะ Crypto (24/7 — หุ้นปิดตลาดแล้วตอน 19:00 ICT)
-    const cryptoEntries = SYMBOLS.filter((s) => s.source === "binance" && s.mode !== "indicator");
+    const allSymbols = await getSymbols();
+    const cryptoEntries = allSymbols.filter((s) => s.source === "binance" && s.mode !== "indicator" && s.pushAlert !== false);
 
     const alerts = [];
     for (const entry of cryptoEntries) {
