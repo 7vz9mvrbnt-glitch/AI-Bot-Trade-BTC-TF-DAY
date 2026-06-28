@@ -554,7 +554,7 @@
             <span class="lbl">Stop Loss (Fib 78.6%)</span><span class="val down">$${fmt(stop)} (-${((risk/entry)*100).toFixed(1)}%)</span>
           </div>
           <div style="font-size:.65rem;color:var(--muted);margin:6px 0 2px">เป้ากำไร (Fib Extension):</div>
-          ${rrScenario('TP1 · Ext 100%',entry,stop,f.fE100,'อนุรักษ์นิยม')}
+          ${rrScenario('TP1 · Ext 100%',entry,stop,f.fE100,'จุดสูงสุดเดิม')}
           ${rrScenario('TP2 · Ext 127.2%',entry,stop,f.fE1272,'สมดุล')}
           ${f.fE1618?rrScenario('TP3 · Ext 161.8% ★',entry,stop,f.fE1618,'แนะนำ'):''}
           ${f.fE2618?rrScenario('TP4 · Ext 261.8%',entry,stop,f.fE2618,'Bull Run'):''}
@@ -629,7 +629,7 @@
       const extSection=f.fE1618?`
         <div class="sub-head" style="margin-top:10px">🚀 Fibonacci Extension (เป้ากำไร)</div>
         <div style="font-size:.63rem;color:var(--muted);margin-bottom:4px">คำนวณจาก: SwingLow + Range × multiplier</div>
-        ${rrRow('Ext 100% (Swing High)',f.fE100,entry,stop,'(อนุรักษ์นิยม)')}
+        ${rrRow('Ext 100% (Swing High)',f.fE100,entry,stop,'(จุดสูงสุดเดิม)')}
         ${rrRow('Ext 127.2%',f.fE1272,entry,stop,'')}
         ${rrRow('★ Ext 161.8%',f.fE1618,entry,stop,'(แนะนำ)')}
         ${rrRow('Ext 261.8%',f.fE2618,entry,stop,'(Bull Run)')}
