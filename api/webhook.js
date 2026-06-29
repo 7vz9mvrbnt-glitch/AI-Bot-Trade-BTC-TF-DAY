@@ -55,6 +55,14 @@ module.exports = async function handler(req, res) {
       continue;
     }
 
+    // Beginner guide
+    if (lower === "คู่มือ" || lower === "มือใหม่" || lower === "guide" || lower === "beginner" || lower.includes("คู่มือมือใหม่")) {
+      try {
+        await replyMessage(event.replyToken, addQuickReply(buildBeginnerGuide()));
+      } catch (_) {}
+      continue;
+    }
+
     // "ข่าว [symbol]" — ข่าวล่าสุดจาก Yahoo Finance RSS
     if (lower.startsWith("ข่าว") || lower.startsWith("news")) {
       const queryText = text.replace(/^(ข่าว|news)\s*/i, "").trim();
@@ -465,6 +473,7 @@ function buildHelpMessage() {
             ["ซื้ออะไรดี / ซื้อ / buy", "สแกนทุกตัว → แนะนำโซน DCA"],
             ["ขายตัวไหนดี / ขาย / sell", "สแกนทุกตัว → แจ้งตัวที่ราคาสูง"],
             ["ข่าว [ชื่อหุ้น] / news [ชื่อหุ้น]", "ข่าวล่าสุดจาก Yahoo Finance"],
+            ["คู่มือ / มือใหม่ / guide", "คู่มืออ่านสัญญาณ RSI MACD Fib ★ R:R"],
           ]),
           { type: "separator", margin: "md" },
           {
@@ -476,6 +485,112 @@ function buildHelpMessage() {
       },
     },
   };
+}
+
+/**
+ * คู่มือมือใหม่ — Flex carousel 5 bubbles
+ * RSI | MACD | Fibonacci | Signal Score | วิธีใช้บอท
+ */
+function buildBeginnerGuide() {
+  const BG   = "#1f2937";
+  const HEAD = "#FFFFFF";
+  const SUB  = "#9ca3af";
+  const BODY = "#374151";
+  const MUTED = "#6b7280";
+  const GREEN = "#10b981";
+  const RED   = "#ef4444";
+  const BLUE  = "#3b82f6";
+  const AMBER = "#f59e0b";
+
+  function bubble(emoji, title, subtitle, rows) {
+    return {
+      type: "bubble",
+      size: "kilo",
+      header: {
+        type: "box", layout: "vertical", backgroundColor: BG,
+        contents: [
+          { type: "text", text: `${emoji} ${title}`, color: HEAD, size: "md", weight: "bold" },
+          { type: "text", text: subtitle, color: SUB, size: "xs", margin: "xs", wrap: true },
+        ],
+      },
+      body: {
+        type: "box", layout: "vertical", spacing: "sm",
+        contents: rows.map(([label, val, col]) => ({
+          type: "box", layout: "horizontal", margin: "sm",
+          contents: [
+            { type: "text", text: label, size: "xs", color: BODY, flex: 5, wrap: true },
+            { type: "text", text: val,   size: "xs", color: col || MUTED, flex: 3, align: "end", wrap: true },
+          ],
+        })),
+      },
+    };
+  }
+
+  const b1 = bubble("📊", "RSI คืออะไร?", "วัดความร้อนแรงของราคา 0–100", [
+    ["RSI < 30", "🧊 ถูกเกิน (Oversold) → โอกาสซื้อ", GREEN],
+    ["RSI 30–50", "❄️ เย็น — ยังไม่ร้อน รอได้", BLUE],
+    ["RSI 50–70", "😊 สมดุล — ปกติ", BODY],
+    ["RSI 70–80", "🔥 ร้อน — ระวังแพงเกิน", AMBER],
+    ["RSI > 80",  "🔥🔥 ร้อนจัด (Overbought) → ระวัง", RED],
+    ["💡 เคล็ดลับ", "RSI < 40 + Fib DCA Zone = จังหวะดี!", GREEN],
+  ]);
+
+  const b2 = bubble("⚡", "MACD คืออะไร?", "วัดแรงขับเคลื่อน (Momentum)", [
+    ["MACD > Signal", "✅ Bullish Cross — แรงขึ้น เริ่มขาขึ้น", GREEN],
+    ["MACD < Signal", "🔴 Bearish Cross — แรงลด เริ่มขาลง", RED],
+    ["Histogram +", "แรงซื้อเพิ่มขึ้น", GREEN],
+    ["Histogram −", "แรงขายเพิ่มขึ้น", RED],
+    ["💡 เคล็ดลับ", "MACD Bullish + RSI < 50 = เริ่มขาขึ้นใหม่", GREEN],
+    ["⚠️ ระวัง", "MACD อาจ lag ในตลาด sideways", AMBER],
+  ]);
+
+  const b3 = bubble("📐", "Fibonacci คืออะไร?", "แนวรับ-แนวต้านจากราคาสูง-ต่ำ 90 วัน", [
+    ["Fib 23.6–38.2%", "📍 แนวรับอ่อน — ราคายังแพง", AMBER],
+    ["Fib 50%",        "⚖️ กลางทาง — รอดูต่อ", BODY],
+    ["Fib 61.8% ★",   "🟢 DCA Zone — จุดสะสมดี", GREEN],
+    ["Fib 65%",        "🟢 DCA Zone — ยังดีอยู่", GREEN],
+    ["Fib 78.6% ★★",  "🟢 DCA ดีที่สุด — ใกล้จุดต่ำ", GREEN],
+    ["Ext 161.8%",     "🚀 เป้ากำไรหลัก — Golden Ratio", BLUE],
+  ]);
+
+  const b4 = bubble("⭐", "Signal Score คืออะไร?", "คะแนนรวมสัญญาณ 1–5 ดาว", [
+    ["⭐⭐⭐⭐⭐ (5 ดาว)", "จังหวะดีมาก — ทุกสัญญาณสอดคล้อง", GREEN],
+    ["⭐⭐⭐⭐   (4 ดาว)", "จังหวะดี — น่าพิจารณาสะสม", GREEN],
+    ["⭐⭐⭐     (3 ดาว)", "ปานกลาง — รอสัญญาณเพิ่ม", AMBER],
+    ["⭐⭐        (2 ดาว)", "อ่อน — ยังไม่ชัด รอก่อน", RED],
+    ["⭐           (1 ดาว)", "ไม่มีสัญญาณ — หลีกเลี่ยง", RED],
+    ["💡 แนะนำ", "DCA เมื่อ Score ≥ 4 ดาว + Fib 61.8%+", GREEN],
+  ]);
+
+  const b5 = bubble("🎯", "R:R คืออะไร?", "Risk vs Reward — ความคุ้มค่าในการเทรด", [
+    ["R:R 1:1", "⚖️ ความเสี่ยง = กำไร (ไม่คุ้ม)", AMBER],
+    ["R:R 1:2 ★", "✅ กำไร 2× ความเสี่ยง (ดี)", GREEN],
+    ["R:R 1:3 ★★", "🚀 กำไร 3× ความเสี่ยง (ดีมาก)", GREEN],
+    ["Entry (จุดเข้า)", "Fib 61.8% — โซน DCA หลัก", BLUE],
+    ["Stop Loss", "Fib 78.6% — จุดตัดขาดทุน", RED],
+    ["💡 สูตรง่าย", "เสี่ยง 10% → คาดกำไร 20–30%", GREEN],
+  ]);
+
+  const intro = {
+    type: "text",
+    text: "📚 คู่มือมือใหม่ — AI Trade Bot\n\n" +
+          "เลื่อนดูการ์ดด้านล่าง 5 หน้า:\n" +
+          "① RSI — ความร้อนแรงของราคา\n" +
+          "② MACD — แรงขับเคลื่อนตลาด\n" +
+          "③ Fibonacci — แนวรับ/แนวต้าน\n" +
+          "④ Signal Score — คะแนนจังหวะ\n" +
+          "⑤ R:R — ความคุ้มค่า Risk:Reward\n\n" +
+          "💡 พิมพ์ 'วิธีใช้' เพื่อดูรายการคำสั่งทั้งหมด",
+  };
+
+  return [
+    intro,
+    {
+      type: "flex",
+      altText: "📚 คู่มือมือใหม่ — RSI, MACD, Fib, Score, R:R",
+      contents: { type: "carousel", contents: [b1, b2, b3, b4, b5] },
+    },
+  ];
 }
 
 function section(title, rows) {
