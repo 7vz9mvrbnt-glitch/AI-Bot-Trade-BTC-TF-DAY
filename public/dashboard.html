@@ -752,7 +752,7 @@
 
     // ── Scan all ──────────────────────────────────────────────
     async function scanAll(){
-      ['buy','sell','neutral'].forEach(g=>{
+      ['crypto','stock','etf'].forEach(g=>{
         document.getElementById('grp-'+g).innerHTML='<div class="loading">⏳ กำลังสแกน...</div>';
         document.getElementById('cnt-'+g).textContent='';
       });
