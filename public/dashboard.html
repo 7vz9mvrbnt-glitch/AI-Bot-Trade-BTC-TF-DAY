@@ -229,6 +229,27 @@
     .gloss-term { font-size: .72rem; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
     .gloss-desc { font-size: .7rem; color: var(--text2); line-height: 1.55; }
     .gloss-ex { margin-top: 4px; font-size: .66rem; color: var(--muted); line-height: 1.5; }
+
+    /* ── DCA Calculator ───────────────────────────────── */
+    .dca-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow); }
+    .dca-modes { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+    .dca-mode-btn { padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg3); color: var(--text2); font-size: .72rem; font-weight: 600; cursor: pointer; transition: all .15s; }
+    .dca-mode-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .dca-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-bottom: 14px; }
+    .dca-field label { display: block; font-size: .68rem; color: var(--muted); margin-bottom: 5px; font-weight: 600; }
+    .dca-field input[type=number] { width: 100%; padding: 8px 10px; background: var(--bg3); color: var(--text); border: 1px solid var(--border); border-radius: 8px; font-size: .83rem; }
+    .dca-field input[type=number]:focus { outline: none; border-color: var(--accent); }
+    .dca-field input[disabled] { opacity: .45; cursor: not-allowed; }
+    .dca-field.is-target input[type=number] { border-color: var(--accent); background: var(--accent-bg); }
+    .dca-result { margin-top: 4px; }
+    .dca-fv { font-size: 1.5rem; font-weight: 800; color: var(--accent); margin-bottom: 10px; }
+    .dca-bar { display: flex; height: 10px; border-radius: 6px; overflow: hidden; margin-bottom: 8px; }
+    .dca-bar .principal { background: var(--muted); }
+    .dca-bar .growth { background: var(--up); }
+    .dca-legend { display: flex; gap: 16px; font-size: .74rem; flex-wrap: wrap; }
+    .dca-legend span { display: flex; align-items: center; gap: 5px; color: var(--text2); }
+    .dca-legend i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+    .dca-err { color: var(--down); font-size: .76rem; margin-top: 8px; }
   </style>
 </head>
 <body>
@@ -297,6 +318,39 @@
         <div class="mc"><div class="loading">⏳ DXY...</div></div>
         <div class="mc"><div class="loading">⏳ วิเคราะห์...</div></div>
       </div>
+    </div>
+
+    <!-- 🧮 DCA Calculator -->
+    <div class="sec-head">
+      <span class="sec-badge green">🧮 คำนวณผลตอบแทน DCA</span>
+    </div>
+    <div class="dca-card">
+      <div class="dca-modes">
+        <button class="dca-mode-btn active" data-mode="fv" onclick="dcaSetMode('fv')">หาเงินรวมสุดท้าย</button>
+        <button class="dca-mode-btn" data-mode="pmt" onclick="dcaSetMode('pmt')">หาเงินลงทุน/เดือน</button>
+        <button class="dca-mode-btn" data-mode="years" onclick="dcaSetMode('years')">หาระยะเวลา</button>
+        <button class="dca-mode-btn" data-mode="rate" onclick="dcaSetMode('rate')">หาผลตอบแทน %</button>
+      </div>
+      <div class="dca-grid">
+        <div class="dca-field" id="dca-field-pmt">
+          <label>เงินลงทุนต่อเดือน (บาท)</label>
+          <input type="number" id="dca-pmt" value="3000" min="0" />
+        </div>
+        <div class="dca-field" id="dca-field-rate">
+          <label>ผลตอบแทนต่อปี (%)</label>
+          <input type="number" id="dca-rate" value="20" />
+        </div>
+        <div class="dca-field" id="dca-field-years">
+          <label>ระยะเวลา (ปี)</label>
+          <input type="number" id="dca-years" value="30" min="0" />
+        </div>
+        <div class="dca-field" id="dca-field-fv">
+          <label>เงินรวมเมื่อถึงเวลานั้น (บาท)</label>
+          <input type="number" id="dca-fv" value="" />
+        </div>
+      </div>
+      <button class="btn-main" onclick="dcaCompute()">คำนวณ</button>
+      <div class="dca-result" id="dca-result"></div>
     </div>
 
     <!-- 📰 ข่าวล่าสุด -->
@@ -379,6 +433,103 @@
     const BASE = window.location.origin;
     const fmt = n => Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
     const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+    // ── DCA Calculator ──────────────────────────────────────
+    let dcaMode = 'fv';
+    function dcaSetMode(mode){
+      dcaMode = mode;
+      document.querySelectorAll('.dca-mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.mode===mode));
+      ['pmt','rate','years','fv'].forEach(k=>{
+        const field = document.getElementById('dca-field-'+k);
+        const input = document.getElementById('dca-'+k);
+        const isTarget = k===mode;
+        field.classList.toggle('is-target', isTarget);
+        input.disabled = isTarget;
+      });
+      document.getElementById('dca-result').innerHTML = '';
+    }
+    // FV of ordinary annuity with monthly contribution P, monthly rate r, n months
+    function dcaFV(P, r, n){ return r===0 ? P*n : P*(((1+r)**n - 1)/r); }
+    function dcaSolveRate(FV, P, n){
+      // bisection: annual rate 0% ~ 200%
+      let lo=0, hi=2;
+      for(let i=0;i<60;i++){
+        const mid=(lo+hi)/2;
+        const r=mid/12;
+        const fv=dcaFV(P,r,n);
+        if(fv<FV) lo=mid; else hi=mid;
+      }
+      return (lo+hi)/2;
+    }
+    function dcaCompute(){
+      const resEl = document.getElementById('dca-result');
+      const P = parseFloat(document.getElementById('dca-pmt').value);
+      const ratePct = parseFloat(document.getElementById('dca-rate').value);
+      const years = parseFloat(document.getElementById('dca-years').value);
+      const FVinput = parseFloat(document.getElementById('dca-fv').value);
+
+      try {
+        let P_, ratePct_, years_, FV_;
+        if(dcaMode==='fv'){
+          if(!(P>0) || !isFinite(ratePct) || !(years>0)) throw new Error('กรอกเงินลงทุน/เดือน, ผลตอบแทน, และระยะเวลาให้ครบ');
+          const n = years*12, r = (ratePct/100)/12;
+          FV_ = dcaFV(P, r, n);
+          P_ = P; ratePct_ = ratePct; years_ = years;
+        } else if(dcaMode==='pmt'){
+          if(!(FVinput>0) || !isFinite(ratePct) || !(years>0)) throw new Error('กรอกเงินรวม, ผลตอบแทน, และระยะเวลาให้ครบ');
+          const n = years*12, r = (ratePct/100)/12;
+          const denom = r===0 ? n : (((1+r)**n - 1)/r);
+          P_ = FVinput/denom;
+          FV_ = FVinput; ratePct_ = ratePct; years_ = years;
+        } else if(dcaMode==='years'){
+          if(!(FVinput>0) || !(P>0) || !isFinite(ratePct)) throw new Error('กรอกเงินรวม, เงินลงทุน/เดือน, และผลตอบแทนให้ครบ');
+          const r = (ratePct/100)/12;
+          let n;
+          if(r===0){ n = FVinput/P; }
+          else {
+            const inner = (FVinput*r/P) + 1;
+            if(inner<=0) throw new Error('ตัวเลขไม่สมเหตุสมผล ลองปรับค่าใหม่');
+            n = Math.log(inner)/Math.log(1+r);
+          }
+          years_ = n/12;
+          P_ = P; ratePct_ = ratePct; FV_ = FVinput;
+        } else { // rate
+          if(!(FVinput>0) || !(P>0) || !(years>0)) throw new Error('กรอกเงินรวม, เงินลงทุน/เดือน, และระยะเวลาให้ครบ');
+          const n = years*12;
+          const annualRate = dcaSolveRate(FVinput, P, n);
+          ratePct_ = annualRate*100;
+          P_ = P; years_ = years; FV_ = FVinput;
+        }
+
+        const n_ = years_*12;
+        const principal = P_*n_;
+        const growth = FV_ - principal;
+        const growthPct = FV_>0 ? (growth/FV_*100) : 0;
+        const principalPct = 100-growthPct;
+
+        const labelMap = { fv:'เงินรวมเมื่อถึงเวลานั้น', pmt:'เงินลงทุนต่อเดือน', years:'ระยะเวลา', rate:'ผลตอบแทนต่อปี' };
+        const valueMap = {
+          fv: `${fmt(FV_)} บาท`,
+          pmt: `${fmt(P_)} บาท/เดือน`,
+          years: `${fmt(years_)} ปี`,
+          rate: `${fmt(ratePct_)} %`,
+        };
+
+        resEl.innerHTML = `
+          <div class="dca-fv">${esc(labelMap[dcaMode])}: ${esc(valueMap[dcaMode])}</div>
+          <div class="dca-bar">
+            <div class="principal" style="width:${Math.max(0,Math.min(100,principalPct))}%"></div>
+            <div class="growth" style="width:${Math.max(0,Math.min(100,growthPct))}%"></div>
+          </div>
+          <div class="dca-legend">
+            <span><i style="background:var(--muted)"></i> เงินต้นสะสม: ${fmt(principal)} บาท (${fmt(principalPct)}%)</span>
+            <span><i style="background:var(--up)"></i> เงินจากผลตอบแทน: ${fmt(growth)} บาท (${fmt(growthPct)}%)</span>
+          </div>
+        `;
+      } catch(e){
+        resEl.innerHTML = `<div class="dca-err">⚠️ ${esc(e.message)}</div>`;
+      }
+    }
 
     // ── Theme ───────────────────────────────────────────────
     function toggleTheme(){
@@ -834,6 +985,7 @@
       }
     }
 
+    dcaSetMode('fv');
     scanAll();
     loadNews();
   </script>
