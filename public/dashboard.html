@@ -82,8 +82,17 @@
     .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; }
 
     /* ── Card ──────────────────────────────────────────── */
-    .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); transition: box-shadow .2s, border-color .2s; }
+    .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); transition: box-shadow .2s, border-color .2s; }
     .card:hover { box-shadow: 0 4px 20px rgba(16,185,129,.12); border-color: rgba(16,185,129,.28); }
+
+    /* ── 5-Year Avg Return box ────────────────────────────── */
+    .ret5y { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding: 9px 11px; border-radius: 10px; background: var(--bg3); border: 1px solid var(--border); }
+    .ret5y-lbl { font-size: .68rem; color: var(--muted); line-height: 1.4; }
+    .ret5y-lbl b { display: block; font-size: .7rem; color: var(--text2); font-weight: 700; }
+    .ret5y-val { font-size: 1.05rem; font-weight: 800; white-space: nowrap; }
+    .ret5y-val.up   { color: var(--up); }
+    .ret5y-val.down { color: var(--down); }
+    .ret5y-sub { font-size: .62rem; color: var(--muted); font-weight: 400; }
 
     /* strip */
     .strip { padding: 12px 14px 10px; position: relative; }
@@ -99,10 +108,10 @@
     .s-score { position: absolute; top: 12px; right: 12px; font-size: .78rem; }
 
     /* body */
-    .cbody { padding: 12px 14px 10px; }
-    .price-row { display: flex; align-items: baseline; gap: 7px; margin-bottom: 8px; }
-    .price { font-size: 1.35rem; font-weight: 700; }
-    .price-rsi { font-size: .72rem; color: var(--muted); }
+    .cbody { padding: 13px 15px 11px; }
+    .price-row { display: flex; align-items: baseline; gap: 7px; margin-bottom: 10px; }
+    .price { font-size: 1.4rem; font-weight: 700; }
+    .price-rsi { font-size: .73rem; color: var(--muted); }
 
     /* chips */
     .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
@@ -384,6 +393,11 @@
     <section class="glossary">
       <h3>📚 คู่มืออ่านสัญญาณ — สำหรับมือใหม่</h3>
       <div class="gloss-grid">
+        <div class="gloss-card">
+          <div class="gloss-term">📊 ผลตอบแทนเฉลี่ย/ปี (5 ปี)</div>
+          <div class="gloss-desc">ผลตอบแทนทบต้นเฉลี่ยต่อปี (CAGR) คำนวณจากราคาย้อนหลัง ~5 ปี ช่วยดูว่าสินทรัพย์นี้ "โตเฉลี่ย" เร็วแค่ไหนในระยะยาว</div>
+          <div class="gloss-ex">🟢 ตัวเลขสูง = โตเร็ว แต่อาจผันผวนสูงตามไปด้วย · ใช้ดูแนวโน้มระยะยาว ไม่ใช่การันตีอนาคต</div>
+        </div>
         <div class="gloss-card">
           <div class="gloss-term">📊 RSI (Relative Strength Index)</div>
           <div class="gloss-desc">วัด "ความร้อนแรง" ของราคา ค่าอยู่ระหว่าง 0–100</div>
@@ -825,6 +839,7 @@
             <div class="price">$${fmt(s.price)}</div>
             ${s.rsi?`<div class="price-rsi">RSI ${s.rsi.value}</div>`:''}
           </div>
+          ${ret5yBox(s)}
           <div class="chips">${tChip}${wChip}${rChip}${mChip}${rrBadge(s)}</div>
           ${fibBar(s)}
           ${buyZone(s)}
@@ -857,6 +872,15 @@
       </div>`;
     }
 
+    function ret5yBox(s){
+      const r = s.fiveYearReturn;
+      if(!r) return '';
+      const up = r.cagrPct >= 0;
+      return `<div class="ret5y" title="คำนวณจากราคาย้อนหลัง ${fmt(r.years)} ปี (เฉลี่ยทบต้นต่อปี)">
+        <div class="ret5y-lbl"><b>📊 ผลตอบแทนเฉลี่ย/ปี</b>ย้อนหลัง ${fmt(r.years)} ปี</div>
+        <div class="ret5y-val ${up?'up':'down'}">${up?'+':''}${fmt(r.cagrPct)}%<div class="ret5y-sub">รวม ${up?'+':''}${fmt(r.totalReturnPct)}%</div></div>
+      </div>`;
+    }
     function rsiCls(z){ return {oversold:'chip-up',low:'chip-up',neutral:'chip-gray',high:'chip-warn',overbought:'chip-down'}[z]||'chip-gray'; }
     function tog(id,btn){ document.getElementById(id)?.classList.toggle('exp'); btn.classList.toggle('open'); }
 

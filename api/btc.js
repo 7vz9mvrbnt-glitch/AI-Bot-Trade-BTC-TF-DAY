@@ -10,6 +10,7 @@ const { fetchCandles } = require("../lib/binance");
 const { fetchCandles: fetchYahoo } = require("../lib/yahoo");
 const { analyze } = require("../lib/analyze");
 const { SYMBOLS, getSymbols } = require("../lib/symbols");
+const { getFiveYearReturn } = require("../lib/returns");
 
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -35,6 +36,9 @@ module.exports = async function handler(req, res) {
     setup.tradeNote   = entry?.tradeNote || "";
     setup.mode        = entry?.mode || null;
     setup.category    = entry?.category || "crypto";
+    if (entry?.mode !== "indicator") {
+      setup.fiveYearReturn = await getFiveYearReturn(symbol, entry?.source);
+    }
     return res.status(200).json({ ok: true, setup, generatedAt: new Date().toISOString() });
   } catch (err) {
     console.error("[btc.js]", err.message);
